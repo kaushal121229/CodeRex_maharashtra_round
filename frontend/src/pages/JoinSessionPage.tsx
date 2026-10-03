@@ -130,7 +130,10 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     try {
       const resp = await fetch(`${apiBase}/rooms/${encodeURIComponent(cleanCode)}/join`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+        },
         body: JSON.stringify({
           room_id: cleanCode,
           display_name: displayName.trim(),

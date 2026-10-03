@@ -43,7 +43,10 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
     try {
       const resp = await fetch(`${apiBase}/rooms`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Bypass-Tunnel-Reminder': 'true',
+        },
         body: JSON.stringify({
           title,
           host_name: hostName,
