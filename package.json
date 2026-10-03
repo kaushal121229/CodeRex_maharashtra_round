@@ -2,7 +2,11 @@
   "name": "roundtable",
   "version": "1.0.0",
   "private": true,
+  "workspaces": [
+    "frontend"
+  ],
   "scripts": {
-    "build": "cd frontend && npm install && npm run build"
+    "build": "npm run build --workspace=frontend",
+    "dev": "npm run dev --workspace=frontend"
   }
 }
