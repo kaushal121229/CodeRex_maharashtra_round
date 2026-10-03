@@ -2,12 +2,14 @@ export interface Participant {
   participant_id: string;
   device_id: string;
   display_name: string;
-  avatar_color: string;
-  role: 'host' | 'participant';
-  status: 'connected' | 'reconnecting' | 'disconnected';
-  mic_active: boolean;
-  rms_level: number;
+  avatar_color?: string;
+  role?: 'host' | 'participant';
+  status?: 'connected' | 'reconnecting' | 'disconnected';
+  connection_status?: 'connected' | 'reconnecting' | 'disconnected';
+  mic_active?: boolean;
+  rms_level?: number;
   last_seen?: number;
+  joined_at?: string;
 }
 
 export interface TranscriptSegment {

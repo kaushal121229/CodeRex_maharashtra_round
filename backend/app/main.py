@@ -2,6 +2,7 @@ import random
 import string
 import asyncio
 import time
+import uuid
 
 import json
 import logging
@@ -18,8 +19,14 @@ from app.database import init_db, get_db
 from app.models import SessionModel, ParticipantModel, TranscriptSegmentModel, EvaluationMetricModel
 from app.schemas import (
     CreateSessionRequest,
+    CreateRoomRequest,
     JoinSessionRequest,
+    JoinRoomRequest,
+    LeaveRoomRequest,
+    EndRoomRequest,
+    RemoveParticipantRequest,
     SessionResponse,
+    RoomResponse,
     ParticipantInfo,
     TranscriptSegmentResponse,
     LiveMetricPayload,
@@ -93,9 +100,12 @@ async def health_check():
         "server_time": time.time()
     }
 
+# ================= CLOUD MEETING ROOM ROUTES =================
+
+@app.post("/rooms", response_model=RoomResponse)
+@app.post("/api/rooms", response_model=RoomResponse)
 @app.post("/api/sessions", response_model=SessionResponse)
-async def create_session(payload: CreateSessionRequest, db: AsyncSession = Depends(get_db)):
-    # Generate unique code
+async def create_room(payload: CreateRoomRequest, db: AsyncSession = Depends(get_db)):
     code = generate_session_code()
     for _ in range(10):
         stmt = select(SessionModel).where(SessionModel.code == code)
@@ -104,116 +114,247 @@ async def create_session(payload: CreateSessionRequest, db: AsyncSession = Depen
             break
         code = generate_session_code()
 
+    host_pid = "P001"
+    effective_dev_id = payload.device_id or f"dev-{uuid.uuid4().hex[:8]}"
+
     session_obj = SessionModel(
         code=code,
-        title=payload.title or "Roundtable Discussion",
-        host_device_id=payload.device_id,
+        title=payload.title or "Roundtable Meeting",
+        host_device_id=effective_dev_id,
+        host_id=host_pid,
+        status="active",
         is_active=True
     )
     db.add(session_obj)
     await db.flush()
 
-    # Create host participant
     host_participant = ParticipantModel(
         session_id=session_obj.id,
-        device_id=payload.device_id,
+        room_id=code,
+        participant_id=host_pid,
+        device_id=effective_dev_id,
         display_name=payload.host_name or "Host",
         avatar_color=random_avatar_color(),
         role="host",
-        is_connected=False
+        connection_status="connected",
+        is_connected=True
     )
     db.add(host_participant)
     await db.commit()
     await db.refresh(session_obj)
 
-    return SessionResponse(
-        id=session_obj.id,
-        code=session_obj.code,
-        title=session_obj.title,
-        host_device_id=session_obj.host_device_id,
-        is_active=session_obj.is_active,
-        created_at=session_obj.created_at,
-        participant_count=1,
-        participants=[ParticipantInfo.model_validate(host_participant)]
+    join_url = f"/join/{code}"
+
+    host_info = ParticipantInfo(
+        id=host_participant.id,
+        participant_id=host_pid,
+        device_id=host_participant.device_id,
+        display_name=host_participant.display_name,
+        avatar_color=host_participant.avatar_color,
+        role="host",
+        connection_status="connected",
+        is_connected=True,
+        mic_muted=False,
+        joined_at=host_participant.joined_at,
+        last_seen_at=host_participant.last_seen_at
     )
 
-@app.get("/api/sessions/{code}", response_model=SessionResponse)
-async def get_session(code: str, db: AsyncSession = Depends(get_db)):
-    stmt = select(SessionModel).where(SessionModel.code == code)
+    return RoomResponse(
+        id=session_obj.id,
+        room_id=session_obj.code,
+        code=session_obj.code,
+        title=session_obj.title,
+        host_id=host_pid,
+        host_device_id=session_obj.host_device_id,
+        status="active",
+        is_active=True,
+        created_at=session_obj.created_at,
+        join_url=join_url,
+        host_participant=host_info,
+        participant_count=1,
+        participants=[host_info]
+    )
+
+@app.get("/rooms/{room_id}", response_model=RoomResponse)
+@app.get("/api/rooms/{room_id}", response_model=RoomResponse)
+@app.get("/api/sessions/{room_id}", response_model=SessionResponse)
+async def get_room(room_id: str, db: AsyncSession = Depends(get_db)):
+    clean_id = room_id.strip().upper()
+    stmt = select(SessionModel).where(SessionModel.code == clean_id)
     res = await db.execute(stmt)
     session_obj = res.scalar_one_or_none()
     if not session_obj:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail="Meeting room not found")
 
     p_stmt = select(ParticipantModel).where(ParticipantModel.session_id == session_obj.id)
     p_res = await db.execute(p_stmt)
     participants = p_res.scalars().all()
 
-    return SessionResponse(
+    p_list = []
+    for p in participants:
+        p_list.append(ParticipantInfo(
+            id=p.id,
+            participant_id=p.participant_id or p.id,
+            device_id=p.device_id,
+            display_name=p.display_name,
+            avatar_color=p.avatar_color,
+            role=p.role,
+            connection_status=p.connection_status or ("connected" if p.is_connected else "disconnected"),
+            is_connected=p.is_connected,
+            mic_muted=p.mic_muted,
+            joined_at=p.joined_at,
+            last_seen_at=p.last_seen_at
+        ))
+
+    return RoomResponse(
         id=session_obj.id,
+        room_id=session_obj.code,
         code=session_obj.code,
         title=session_obj.title,
+        host_id=session_obj.host_id,
         host_device_id=session_obj.host_device_id,
+        status=session_obj.status or ("active" if session_obj.is_active else "ended"),
         is_active=session_obj.is_active,
         created_at=session_obj.created_at,
+        join_url=f"/join/{session_obj.code}",
         participant_count=len(participants),
-        participants=[ParticipantInfo.model_validate(p) for p in participants]
+        participants=p_list
     )
 
-@app.post("/api/sessions/{code}/join")
-async def join_session(code: str, payload: JoinSessionRequest, db: AsyncSession = Depends(get_db)):
-    stmt = select(SessionModel).where(SessionModel.code == code)
+@app.post("/rooms/{room_id}/join")
+@app.post("/api/rooms/{room_id}/join")
+@app.post("/api/sessions/{room_id}/join")
+async def join_room(room_id: str, payload: JoinRoomRequest, db: AsyncSession = Depends(get_db)):
+    clean_id = (payload.room_id or room_id).strip().upper()
+    stmt = select(SessionModel).where(SessionModel.code == clean_id)
     res = await db.execute(stmt)
     session_obj = res.scalar_one_or_none()
-    if not session_obj or not session_obj.is_active:
-        raise HTTPException(status_code=404, detail="Active session not found")
+    if not session_obj or not session_obj.is_active or session_obj.status == "ended":
+        raise HTTPException(status_code=404, detail="Active meeting room not found or meeting has ended")
 
-    # Check if participant with same device_id already exists in this session (Reconnection support)
+    # Check for existing participant to prevent duplicates on reconnection
     p_stmt = select(ParticipantModel).where(
         ParticipantModel.session_id == session_obj.id,
-        ParticipantModel.device_id == payload.device_id
+        (
+            (ParticipantModel.participant_id == payload.participant_id) if payload.participant_id else False
+        ) | (
+            ParticipantModel.device_id == payload.device_id
+        )
     )
     p_res = await db.execute(p_stmt)
     existing_p = p_res.scalar_one_or_none()
 
     if existing_p:
-        # Reconnecting existing participant
+        # Reconnect existing participant with identical participant_id!
         existing_p.display_name = payload.display_name
         if payload.avatar_color:
             existing_p.avatar_color = payload.avatar_color
         existing_p.is_connected = True
+        existing_p.connection_status = "connected"
+        existing_p.last_seen_at = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(existing_p)
+
+        part_info = ParticipantInfo(
+            id=existing_p.id,
+            participant_id=existing_p.participant_id or existing_p.id,
+            device_id=existing_p.device_id,
+            display_name=existing_p.display_name,
+            avatar_color=existing_p.avatar_color,
+            role=existing_p.role,
+            connection_status="connected",
+            is_connected=True,
+            mic_muted=existing_p.mic_muted,
+            joined_at=existing_p.joined_at,
+            last_seen_at=existing_p.last_seen_at
+        )
+
         return {
+            "room_id": session_obj.code,
             "session_id": session_obj.id,
             "session_code": session_obj.code,
             "title": session_obj.title,
-            "participant": ParticipantInfo.model_validate(existing_p),
+            "participant": part_info,
             "is_reconnect": True
         }
 
-    # New participant
+    # Brand new participant in room
+    # Compute next sequential participant ID (P002, P003, ...)
+    count_stmt = select(ParticipantModel).where(ParticipantModel.session_id == session_obj.id)
+    all_p = (await db.execute(count_stmt)).scalars().all()
+    next_pid = f"P{len(all_p) + 1:03d}"
+
     new_p = ParticipantModel(
         session_id=session_obj.id,
+        room_id=session_obj.code,
+        participant_id=next_pid,
         device_id=payload.device_id,
         display_name=payload.display_name,
         avatar_color=payload.avatar_color or random_avatar_color(),
         role="participant",
+        connection_status="connected",
         is_connected=True
     )
     db.add(new_p)
     await db.commit()
     await db.refresh(new_p)
 
+    part_info = ParticipantInfo(
+        id=new_p.id,
+        participant_id=new_p.participant_id,
+        device_id=new_p.device_id,
+        display_name=new_p.display_name,
+        avatar_color=new_p.avatar_color,
+        role=new_p.role,
+        connection_status="connected",
+        is_connected=True,
+        mic_muted=False,
+        joined_at=new_p.joined_at,
+        last_seen_at=new_p.last_seen_at
+    )
+
     return {
+        "room_id": session_obj.code,
         "session_id": session_obj.id,
         "session_code": session_obj.code,
         "title": session_obj.title,
-        "participant": ParticipantInfo.model_validate(new_p),
+        "participant": part_info,
         "is_reconnect": False
     }
 
+@app.post("/rooms/{room_id}/leave")
+@app.post("/api/rooms/{room_id}/leave")
+async def leave_room_endpoint(room_id: str, payload: LeaveRoomRequest):
+    clean_id = room_id.strip().upper()
+    await manager.disconnect(clean_id, payload.participant_id)
+    return {"status": "left", "room_id": clean_id, "participant_id": payload.participant_id}
+
+@app.post("/rooms/{room_id}/end")
+@app.post("/api/rooms/{room_id}/end")
+async def end_room_endpoint(room_id: str, payload: Optional[EndRoomRequest] = None, db: AsyncSession = Depends(get_db)):
+    clean_id = room_id.strip().upper()
+    stmt = select(SessionModel).where(SessionModel.code == clean_id)
+    res = await db.execute(stmt)
+    session_obj = res.scalar_one_or_none()
+    if session_obj:
+        session_obj.is_active = False
+        session_obj.status = "ended"
+        session_obj.ended_at = datetime.now(timezone.utc)
+        await db.commit()
+
+    host_id = payload.host_id if payload else None
+    await manager.end_meeting(clean_id, host_id)
+    return {"status": "ended", "room_id": clean_id, "message": "Meeting ended by host."}
+
+@app.post("/rooms/{room_id}/participants/{participant_id}/remove")
+@app.post("/api/rooms/{room_id}/participants/{participant_id}/remove")
+async def remove_participant_endpoint(room_id: str, participant_id: str):
+    clean_id = room_id.strip().upper()
+    await manager.remove_participant(clean_id, participant_id)
 @app.get("/api/sessions/{code}/transcript", response_model=List[TranscriptSegmentResponse])
+@app.get("/rooms/{code}/transcript", response_model=List[TranscriptSegmentResponse])
+@app.get("/api/rooms/{code}/transcript", response_model=List[TranscriptSegmentResponse])
+
 async def get_transcript(code: str, db: AsyncSession = Depends(get_db)):
     stmt = select(SessionModel).where(SessionModel.code == code)
     res = await db.execute(stmt)
@@ -372,23 +513,38 @@ async def simulate_overlap_demo(code: str):
 
 # ================= WEBSOCKET STREAMING =================
 
-@app.websocket("/ws/{session_code}/{participant_id}")
-async def websocket_endpoint(
+# ================= WEBSOCKET STREAMING =================
+
+@app.websocket("/ws/{room_id}")
+@app.websocket("/ws/{room_id}/{participant_id}")
+async def websocket_room_endpoint(
     websocket: WebSocket,
-    session_code: str,
-    participant_id: str,
-    device_id: str = Query(...),
-    display_name: str = Query(...),
-    avatar_color: str = Query("#6366F1")
+    room_id: str,
+    participant_id: Optional[str] = None,
+    device_id: Optional[str] = Query(None),
+    display_name: Optional[str] = Query(None),
+    avatar_color: Optional[str] = Query(None)
 ):
-    await manager.connect(
-        session_code=session_code,
-        participant_id=participant_id,
-        device_id=device_id,
-        display_name=display_name,
-        avatar_color=avatar_color,
-        websocket=websocket
-    )
+    clean_room_id = room_id.strip().upper()
+    current_pid = participant_id
+    current_device_id = device_id
+    current_display_name = display_name
+    current_avatar_color = avatar_color or "#6366F1"
+    is_joined = False
+
+    # If query parameters were provided in URL, we can join immediately
+    if current_pid and current_device_id and current_display_name:
+        await manager.connect(
+            session_code=clean_room_id,
+            participant_id=current_pid,
+            device_id=current_device_id,
+            display_name=current_display_name,
+            avatar_color=current_avatar_color,
+            websocket=websocket
+        )
+        is_joined = True
+    else:
+        await websocket.accept()
 
     try:
         while True:
@@ -396,71 +552,120 @@ async def websocket_endpoint(
             data = json.loads(raw_text)
             msg_type = data.get("type")
 
-            if msg_type == "ping":
-                # Clock sync & heartbeat
+            # 1. Join Room Event
+            if msg_type in ("join_room", "reconnect"):
+                target_room = (data.get("room_id") or clean_room_id).strip().upper()
+                current_pid = data.get("participant_id") or current_pid or f"P{int(time.time()*1000)%10000}"
+                current_device_id = data.get("device_id") or current_device_id or f"dev-{current_pid}"
+                current_display_name = data.get("display_name") or current_display_name or "Participant"
+                current_avatar_color = data.get("avatar_color") or current_avatar_color
+
+                await manager.connect(
+                    session_code=target_room,
+                    participant_id=current_pid,
+                    device_id=current_device_id,
+                    display_name=current_display_name,
+                    avatar_color=current_avatar_color,
+                    websocket=websocket
+                )
+                is_joined = True
+
+            # 2. Heartbeat / Ping Event
+            elif msg_type in ("heartbeat", "ping"):
                 client_t = data.get("client_time", time.time())
+                server_t = time.time()
                 await manager.send_personal_message({
-                    "type": "pong",
+                    "type": "heartbeat_ack" if msg_type == "heartbeat" else "pong",
                     "client_time": client_t,
-                    "server_time": time.time()
+                    "server_time": server_t,
+                    "connection_status": "connected"
                 }, websocket)
 
+                # Update participant's last_seen
+                if is_joined and current_pid and clean_room_id in manager.participant_states:
+                    if current_pid in manager.participant_states[clean_room_id]:
+                        manager.participant_states[clean_room_id][current_pid]["last_seen"] = server_t
+
+            # 3. Leave Room Event
+            elif msg_type == "leave_room":
+                target_pid = data.get("participant_id") or current_pid
+                if target_pid:
+                    await manager.disconnect(clean_room_id, target_pid)
+                break
+
+            # 4. Host End Meeting Event
+            elif msg_type == "end_meeting":
+                host_id = data.get("host_id") or current_pid
+                await manager.end_meeting(clean_room_id, host_id)
+                break
+
+            # 5. Host Remove Participant Event
+            elif msg_type == "remove_participant":
+                target_pid = data.get("participant_id")
+                if target_pid:
+                    await manager.remove_participant(clean_room_id, target_pid)
+
+            # 6. Audio Chunk Streaming Event
             elif msg_type == "audio_chunk":
-                # Multi-device streaming audio payload
-                await manager.handle_audio_payload(
-                    session_code=session_code,
-                    participant_id=participant_id,
-                    data=data
-                )
+                if is_joined and current_pid:
+                    await manager.handle_audio_payload(
+                        session_code=clean_room_id,
+                        participant_id=current_pid,
+                        data=data
+                    )
 
+            # 7. Sync Speech (Assistive dual speech-to-text)
             elif msg_type == "sync_speech":
-                # Direct speech transcription payload (e.g. from frontend Web Speech or hybrid stream)
-                text = data.get("text", "").strip()
-                if text:
-                    t_start = float(data.get("start_timestamp", time.time() - 1.5))
-                    t_end = float(data.get("end_timestamp", time.time()))
-                    confidence = float(data.get("confidence", 0.95))
-                    
-                    coordinator = audio_registry.get_or_create(session_code)
-                    # Check overlap with any other recent speech
-                    active_speakers = [
-                        d.display_name for pid, d in coordinator.devices.items()
-                        if pid != participant_id and d.get_avg_recent_rms() > settings.VAD_RMS_THRESHOLD
-                    ]
-                    is_overlap = len(active_speakers) > 0
+                if is_joined and current_pid:
+                    text = data.get("text", "").strip()
+                    if text:
+                        t_start = float(data.get("start_timestamp", time.time() - 1.5))
+                        t_end = float(data.get("end_timestamp", time.time()))
+                        confidence = float(data.get("confidence", 0.95))
 
-                    segment = {
-                        "participant_id": participant_id,
-                        "speaker_name": display_name,
-                        "avatar_color": avatar_color,
-                        "device_id": device_id,
-                        "text": text,
-                        "start_timestamp": round(t_start, 2),
-                        "end_timestamp": round(t_end, 2),
-                        "confidence": round(confidence, 2),
-                        "is_overlap": is_overlap,
-                        "overlap_with": ", ".join(active_speakers) if is_overlap else None,
-                        "latency_ms": round((time.time() - t_start) * 1000.0, 1)
-                    }
+                        coordinator = audio_registry.get_or_create(clean_room_id)
+                        active_speakers = [
+                            d.display_name for pid, d in coordinator.devices.items()
+                            if pid != current_pid and d.get_avg_recent_rms() > settings.VAD_RMS_THRESHOLD
+                        ]
+                        is_overlap = len(active_speakers) > 0
 
-                    await manager.broadcast(session_code, {"type": "new_caption", "segment": segment})
-                    if is_overlap:
-                        await manager.broadcast(session_code, {
-                            "type": "overlap_alert",
-                            "speakers": f"{display_name}, {active_speakers[0]}",
-                            "timestamp": t_start
-                        })
-                    asyncio.create_task(manager._persist_segment(session_code, segment))
+                        segment = {
+                            "participant_id": current_pid,
+                            "speaker_name": current_display_name or "Speaker",
+                            "avatar_color": current_avatar_color,
+                            "device_id": current_device_id,
+                            "text": text,
+                            "start_timestamp": round(t_start, 2),
+                            "end_timestamp": round(t_end, 2),
+                            "confidence": round(confidence, 2),
+                            "is_overlap": is_overlap,
+                            "overlap_with": ", ".join(active_speakers) if is_overlap else None,
+                            "latency_ms": round((time.time() - t_start) * 1000.0, 1)
+                        }
 
+                        await manager.broadcast(clean_room_id, {"type": "new_caption", "segment": segment})
+                        if is_overlap:
+                            await manager.broadcast(clean_room_id, {
+                                "type": "overlap_alert",
+                                "speakers": f"{current_display_name}, {active_speakers[0]}",
+                                "timestamp": t_start
+                            })
+                        asyncio.create_task(manager._persist_segment(clean_room_id, segment))
+
+            # 8. Toggle Microphone Mute
             elif msg_type == "toggle_mic":
                 is_muted = data.get("is_muted", False)
-                if session_code in manager.participant_states and participant_id in manager.participant_states[session_code]:
-                    manager.participant_states[session_code][participant_id]["mic_active"] = not is_muted
-                    await manager.broadcast_participant_list(session_code)
+                if clean_room_id in manager.participant_states and current_pid in manager.participant_states[clean_room_id]:
+                    manager.participant_states[clean_room_id][current_pid]["mic_active"] = not is_muted
+                    await manager.broadcast_participant_list(clean_room_id)
 
     except WebSocketDisconnect:
-        logger.info(f"WebSocket disconnected for {display_name} in session {session_code}")
-        await manager.disconnect(session_code, participant_id)
+        logger.info(f"WebSocket disconnected for {current_display_name} ({current_pid}) in room {clean_room_id}")
+        if is_joined and current_pid:
+            await manager.disconnect(clean_room_id, current_pid)
     except Exception as e:
-        logger.error(f"WebSocket error for {display_name}: {e}")
-        await manager.disconnect(session_code, participant_id)
+        logger.error(f"WebSocket error for {current_display_name}: {e}")
+        if is_joined and current_pid:
+            await manager.disconnect(clean_room_id, current_pid)
+

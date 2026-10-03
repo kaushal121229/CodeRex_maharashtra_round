@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Mic, MicOff, ArrowLeft, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Smartphone, Mic, ArrowLeft, ArrowRight, Link as LinkIcon, Check, Copy } from 'lucide-react';
 import { getOrCreateDeviceId } from '../utils/deviceUtils';
 import { calculateRMS } from '../utils/audioUtils';
+import { getApiBaseUrl, getPublicAppUrl } from '../utils/config';
 
 interface JoinSessionPageProps {
   initialCode?: string;
@@ -27,9 +28,10 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
 }) => {
   const [sessionCode, setSessionCode] = useState(initialCode.toUpperCase());
   const [displayName, setDisplayName] = useState('');
-  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[0]);
+  const [selectedColor, setSelectedColor] = useState(AVATAR_COLORS[1]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Mic test state
   const [isTestingMic, setIsTestingMic] = useState(false);
@@ -44,7 +46,6 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     }
   }, [initialCode]);
 
-  // Clean up mic test on unmount
   useEffect(() => {
     return () => {
       if (micStream) {
@@ -88,6 +89,15 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     }
   };
 
+  const handleCopyLink = () => {
+    if (!sessionCode.trim()) return;
+    const appBase = getPublicAppUrl();
+    const url = `${appBase}/join/${encodeURIComponent(sessionCode.trim().toUpperCase())}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!sessionCode.trim() || !displayName.trim()) return;
@@ -95,7 +105,6 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     setIsLoading(true);
     setError(null);
 
-    // Stop test mic before joining
     if (micStream) {
       micStream.getTracks().forEach((t) => t.stop());
       setMicStream(null);
@@ -103,29 +112,40 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     }
 
     const cleanCode = sessionCode.trim().toUpperCase();
+    const apiBase = getApiBaseUrl();
+    console.log('[JOIN] Joining room', cleanCode);
+
+    // Check if participant had a previous ID stored for this room
+    const savedPid = localStorage.getItem(`roundtable_pid_${cleanCode}`);
 
     try {
-      const resp = await fetch(`/api/sessions/${encodeURIComponent(cleanCode)}/join`, {
+      const resp = await fetch(`${apiBase}/rooms/${encodeURIComponent(cleanCode)}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          session_code: cleanCode,
+          room_id: cleanCode,
           display_name: displayName.trim(),
           device_id: deviceId,
           avatar_color: selectedColor,
+          participant_id: savedPid || undefined,
         }),
       });
 
       if (!resp.ok) {
         const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Could not join session. Verify the code.');
+        throw new Error(errorData.detail || 'Meeting room not found or has ended. Please check the Room ID.');
       }
 
       const data = await resp.json();
-      onSessionJoined(data.session_code, data.participant);
+      const confirmedPid = data.participant.participant_id || data.participant.id;
+      // Save for seamless reconnection
+      localStorage.setItem(`roundtable_pid_${cleanCode}`, confirmedPid);
+      console.log('[JOIN] Joined room', data.room_id || data.session_code, 'as', confirmedPid);
+
+      onSessionJoined(data.room_id || data.session_code, data.participant);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Failed to join session');
+      console.error('[JOIN] Failed to join room:', err);
+      setError(err.message || 'Failed to join meeting room');
     } finally {
       setIsLoading(false);
     }
@@ -147,23 +167,35 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20">
             <Smartphone className="w-6 h-6" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Join Roundtable</h2>
-          <p className="text-sm text-slate-400 mt-1">
-            Connect your device as a collaborative microphone node.
+          <h2 className="text-2xl font-bold text-white">Join Cloud Meeting</h2>
+          <p className="text-xs text-slate-400 mt-1">
+            Connect from any phone, mobile data, or Wi-Fi network.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 mb-5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-sm">
+          <div className="p-3 mb-5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
             {error}
           </div>
         )}
 
         <form onSubmit={handleJoin} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-              Roundtable Code
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+                Room ID
+              </label>
+              {sessionCode && (
+                <button
+                  type="button"
+                  onClick={handleCopyLink}
+                  className="flex items-center space-x-1 text-[11px] text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                >
+                  {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copiedLink ? 'Copied' : 'Copy Join Link'}</span>
+                </button>
+              )}
+            </div>
             <input
               type="text"
               required
@@ -183,7 +215,7 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
               required
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g., Saish or Rahul"
+              placeholder="e.g., Rahul, Saish, or Aman"
               className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
             />
           </div>
@@ -243,10 +275,10 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
             className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer disabled:opacity-60"
           >
             {isLoading ? (
-              <span>Connecting Device Node...</span>
+              <span>Connecting to Room...</span>
             ) : (
               <>
-                <span>Join Roundtable</span>
+                <span>Join Meeting</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </>
             )}

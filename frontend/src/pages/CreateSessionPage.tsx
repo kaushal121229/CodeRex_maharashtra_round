@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Radio, Copy, Check, ArrowRight, ArrowLeft, Smartphone, ShieldCheck, Sparkles } from 'lucide-react';
+import { Radio, Copy, Check, ArrowRight, ArrowLeft, Smartphone, ShieldCheck, Sparkles, Hash, Link as LinkIcon, QrCode } from 'lucide-react';
 import { getOrCreateDeviceId } from '../utils/deviceUtils';
+import { getApiBaseUrl, getPublicAppUrl } from '../utils/config';
 
 interface CreateSessionPageProps {
   onSessionCreated: (sessionCode: string, hostParticipant: any) => void;
@@ -12,11 +13,12 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
   onSessionCreated,
   onBack,
 }) => {
-  const [title, setTitle] = useState('Roundtable Discussion');
+  const [title, setTitle] = useState('Roundtable Meeting');
   const [hostName, setHostName] = useState('Host');
   const [isLoading, setIsLoading] = useState(false);
   const [createdSession, setCreatedSession] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const deviceId = getOrCreateDeviceId();
@@ -26,8 +28,11 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
     setIsLoading(true);
     setError(null);
 
+    const apiBase = getApiBaseUrl();
+    console.log('[ROOM] Creating room');
+
     try {
-      const resp = await fetch('/api/sessions', {
+      const resp = await fetch(`${apiBase}/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -38,33 +43,42 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
       });
 
       if (!resp.ok) {
-        throw new Error(`Failed to create session (${resp.statusText})`);
+        const errDetail = await resp.text();
+        throw new Error(`Failed to create meeting room: ${errDetail || resp.statusText}`);
       }
 
       const data = await resp.json();
+      console.log('[ROOM] Room created', data.room_id || data.code);
       setCreatedSession(data);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Error creating session');
+      console.error('[ROOM] Error creating room:', err);
+      setError(err.message || 'Error creating meeting room');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const joinUrl = createdSession
-    ? `${window.location.origin}/join?session=${encodeURIComponent(createdSession.code)}`
-    : '';
+  const roomId = createdSession ? (createdSession.room_id || createdSession.code) : '';
+  const appBase = getPublicAppUrl();
+  const joinUrl = roomId ? `${appBase}/join/${encodeURIComponent(roomId)}` : '';
 
-  const handleCopy = () => {
+  const handleCopyLink = () => {
     if (!joinUrl) return;
     navigator.clipboard.writeText(joinUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleCopyId = () => {
+    if (!roomId) return;
+    navigator.clipboard.writeText(roomId);
+    setCopiedId(true);
+    setTimeout(() => setCopiedId(false), 2000);
   };
 
   const handleEnterDashboard = () => {
     if (createdSession && createdSession.participants?.[0]) {
-      onSessionCreated(createdSession.code, createdSession.participants[0]);
+      onSessionCreated(roomId, createdSession.participants[0]);
     }
   };
 
@@ -87,9 +101,9 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
               <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20">
                 <Radio className="w-6 h-6" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Create a Roundtable</h2>
+              <h2 className="text-2xl font-bold text-white">Create Cloud Meeting</h2>
               <p className="text-sm text-slate-400 mt-1">
-                Start a session and invite nearby participants to act as microphone nodes.
+                Start a shared internet meeting room. Nearby and remote devices can join with Room ID or QR.
               </p>
             </div>
 
@@ -102,7 +116,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
             <form onSubmit={handleCreate} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-                  Session Topic / Title
+                  Meeting Topic / Title
                 </label>
                 <input
                   type="text"
@@ -123,7 +137,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
                   required
                   value={hostName}
                   onChange={(e) => setHostName(e.target.value)}
-                  placeholder="e.g., Alex Johnson"
+                  placeholder="e.g., Saish (Host)"
                   className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
@@ -144,78 +158,104 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
                 className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer disabled:opacity-60"
               >
                 {isLoading ? (
-                  <span>Generating Session & QR...</span>
+                  <span>Creating Cloud Room...</span>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Generate Session & QR Code</span>
+                    <span>Create Meeting Room</span>
                   </>
                 )}
               </button>
             </form>
           </div>
         ) : (
-          /* Session Created - QR and Join Link */
-          <div className="text-center animate-fade-in">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-3 border border-emerald-500/20">
+          /* Room Created - Controls: Copy Room ID, Copy Join Link, QR Code */
+          <div className="text-center animate-fade-in space-y-5">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-1 border border-emerald-500/20">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <h2 className="text-2xl font-bold text-white">Roundtable Ready!</h2>
-            <p className="text-sm text-slate-400 mt-1 mb-6">
-              Invite nearby people to scan this QR code on their phone or join with code.
-            </p>
+            <div>
+              <h2 className="text-2xl font-bold text-white">Meeting Room Created!</h2>
+              <p className="text-xs text-slate-400 mt-1">
+                Share this Room ID or QR code with participants on any phone, Wi-Fi, or mobile network.
+              </p>
+            </div>
+
+            {/* Room ID Badge */}
+            <div className="p-3 rounded-2xl bg-slate-950/80 border border-indigo-500/30">
+              <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider font-semibold block">
+                Room ID
+              </span>
+              <span className="text-2xl font-mono font-extrabold text-indigo-300 tracking-wider">
+                {roomId}
+              </span>
+            </div>
 
             {/* QR Code Container */}
-            <div className="flex flex-col items-center justify-center p-6 bg-white rounded-2xl shadow-inner mb-6 mx-auto max-w-[260px]">
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-inner mx-auto max-w-[240px]">
               <QRCodeSVG
                 value={joinUrl}
                 size={180}
                 level="H"
                 includeMargin={true}
               />
-              <div className="mt-2 text-center">
-                <span className="text-[10px] uppercase font-mono text-slate-500 tracking-wider font-semibold block">
-                  Session Code
-                </span>
-                <span className="text-xl font-mono font-extrabold text-slate-900 tracking-wider">
-                  {createdSession.code}
-                </span>
-              </div>
+              <span className="text-[11px] font-mono text-slate-600 mt-2 font-semibold">
+                Scan with phone camera
+              </span>
             </div>
 
-            {/* Copy Link */}
-            <div className="flex items-center space-x-2 p-2 rounded-xl bg-slate-950/60 border border-white/5 mb-6 text-left">
-              <input
-                type="text"
-                readOnly
-                value={joinUrl}
-                className="bg-transparent text-xs text-slate-300 w-full focus:outline-none font-mono truncate px-2"
-              />
+            {/* Action Buttons: Copy Room ID & Copy Join Link */}
+            <div className="grid grid-cols-2 gap-3 text-left">
               <button
-                onClick={handleCopy}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium transition-colors shrink-0"
+                type="button"
+                onClick={handleCopyId}
+                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-white/10 transition-colors"
               >
-                {copied ? (
+                {copiedId ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-300" />
-                    <span>Copied</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>ID Copied</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy</span>
+                    <Hash className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>Copy Room ID</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-colors"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>Link Copied</span>
+                  </>
+                ) : (
+                  <>
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    <span>Copy Join Link</span>
                   </>
                 )}
               </button>
             </div>
 
+            <div className="p-2 rounded-xl bg-slate-950/60 border border-white/5">
+              <span className="text-[11px] text-slate-400 font-mono break-all block truncate">
+                {joinUrl}
+              </span>
+            </div>
+
             {/* Enter Live Roundtable */}
             <button
               onClick={handleEnterDashboard}
-              className="w-full flex items-center justify-center space-x-2 py-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-base shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
+              className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
             >
-              <span>Enter Live Roundtable as Host</span>
-              <ArrowRight className="w-5 h-5 ml-1" />
+              <span>Enter Meeting as Host</span>
+              <ArrowRight className="w-4 h-4 ml-1" />
             </button>
           </div>
         )}

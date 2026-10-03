@@ -1,16 +1,23 @@
 import React from 'react';
-import { Mic, MicOff, Smartphone, Laptop, RefreshCw } from 'lucide-react';
+import { Mic, MicOff, Smartphone, Laptop, RefreshCw, UserX } from 'lucide-react';
 import { Participant } from '../types';
 
 interface DeviceNodeBadgeProps {
   participant: Participant;
   isSelf: boolean;
+  isHost?: boolean;
+  onRemove?: (participantId: string) => void;
 }
 
-export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({ participant, isSelf }) => {
-  const isMobile = participant.device_id.startsWith('phone');
-  const isConnected = participant.status === 'connected';
-  const isReconnecting = participant.status === 'reconnecting';
+export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({
+  participant,
+  isSelf,
+  isHost,
+  onRemove,
+}) => {
+  const isMobile = participant.device_id.startsWith('phone') || participant.device_id.includes('mobi');
+  const isConnected = participant.status === 'connected' || participant.connection_status === 'connected';
+  const isReconnecting = participant.status === 'reconnecting' || participant.connection_status === 'reconnecting';
   
   // Calculate speech activity level (0-100)
   const activityLevel = participant.rms_level ? Math.min(100, participant.rms_level * 500) : 0;
@@ -68,14 +75,14 @@ export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({ participant, i
                 <Laptop className="w-3 h-3 text-slate-400" />
               )}
               <span className="truncate max-w-[110px] font-mono text-[11px] text-slate-400">
-                {participant.device_id}
+                {participant.participant_id || participant.device_id}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Mic & Connection state */}
-        <div className="flex flex-col items-end space-y-1">
+        {/* Mic, Connection state, and Host Kick */}
+        <div className="flex items-center space-x-2">
           {isReconnecting ? (
             <span className="flex items-center space-x-1 text-[11px] text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">
               <RefreshCw className="w-2.5 h-2.5 animate-spin" />
@@ -103,6 +110,17 @@ export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({ participant, i
             </div>
           ) : (
             <span className="text-[11px] text-slate-400">Offline</span>
+          )}
+
+          {/* Host remove participant button */}
+          {isHost && !isSelf && onRemove && (
+            <button
+              onClick={() => onRemove(participant.participant_id || (participant as any).id)}
+              title="Remove participant from meeting"
+              className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors ml-1"
+            >
+              <UserX className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>

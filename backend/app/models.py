@@ -11,9 +11,11 @@ class SessionModel(Base):
     __tablename__ = "sessions"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    code = Column(String(16), unique=True, index=True, nullable=False)
+    code = Column(String(16), unique=True, index=True, nullable=False)  # room_id (e.g. RT-48291)
     title = Column(String(128), default="Roundtable Discussion")
     host_device_id = Column(String(64), nullable=True)
+    host_id = Column(String(64), nullable=True)  # Host participant ID
+    status = Column(String(16), default="active")  # 'active' | 'ended'
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=utc_now)
     ended_at = Column(DateTime(timezone=True), nullable=True)
@@ -22,15 +24,22 @@ class SessionModel(Base):
     transcript_segments = relationship("TranscriptSegmentModel", back_populates="session", cascade="all, delete-orphan")
     metrics = relationship("EvaluationMetricModel", back_populates="session", cascade="all, delete-orphan")
 
+    @property
+    def room_id(self) -> str:
+        return self.code
+
 class ParticipantModel(Base):
     __tablename__ = "participants"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String(36), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
+    room_id = Column(String(16), index=True, nullable=True)
+    participant_id = Column(String(64), index=True, nullable=True)  # Public unique ID (e.g. P123 or stable UUID)
     device_id = Column(String(64), nullable=False, index=True)
     display_name = Column(String(64), nullable=False)
     avatar_color = Column(String(32), default="#6366F1")
     role = Column(String(16), default="participant")  # 'host' or 'participant'
+    connection_status = Column(String(16), default="connected")  # 'connected' | 'reconnecting' | 'disconnected'
     is_connected = Column(Boolean, default=True)
     mic_muted = Column(Boolean, default=False)
     joined_at = Column(DateTime(timezone=True), default=utc_now)
@@ -38,6 +47,7 @@ class ParticipantModel(Base):
 
     session = relationship("SessionModel", back_populates="participants")
     transcript_segments = relationship("TranscriptSegmentModel", back_populates="participant")
+
 
 class TranscriptSegmentModel(Base):
     __tablename__ = "transcript_segments"
