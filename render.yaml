@@ -1,11 +1,13 @@
 services:
   - type: web
-    name: roundtable-cloud-meeting
+    name: roundtable-backend
     runtime: python
     buildCommand: "cd backend && pip install -r requirements.txt"
     startCommand: "cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    plan: free
+    region: oregon
     envVars:
-      - key: DATABASE_URL
-        sync: false
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: CORS_ORIGINS
+        value: "https://*.vercel.app"
