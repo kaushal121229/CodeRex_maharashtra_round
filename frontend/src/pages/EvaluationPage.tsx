@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { BarChart3, CheckCircle2, AlertTriangle, ArrowLeft, RefreshCw, Zap, Layers, Sparkles, HelpCircle } from 'lucide-react';
 import { WERResult } from '../types';
+import { getApiBaseUrl } from '../utils/config';
 
 interface EvaluationPageProps {
   sessionCode?: string;
@@ -49,7 +50,8 @@ export const EvaluationPage: React.FC<EvaluationPageProps> = ({
     setError(null);
 
     try {
-      const resp = await fetch('/api/evaluation/wer', {
+      const apiBase = getApiBaseUrl();
+      const resp = await fetch(`${apiBase}/api/evaluation/wer`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

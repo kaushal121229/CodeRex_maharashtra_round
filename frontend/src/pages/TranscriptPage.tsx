@@ -3,6 +3,7 @@ import { Search, Download, FileText, ArrowLeft, Clock, Filter, User, Layers } fr
 import { TranscriptSegment } from '../types';
 import { formatTime } from '../utils/deviceUtils';
 import { exportTranscriptToPDF } from '../utils/pdfExport';
+import { getApiBaseUrl } from '../utils/config';
 
 interface TranscriptPageProps {
   sessionCode: string;
@@ -21,7 +22,8 @@ export const TranscriptPage: React.FC<TranscriptPageProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/sessions/${sessionCode}/transcript`)
+    const apiBase = getApiBaseUrl();
+    fetch(`${apiBase}/api/sessions/${encodeURIComponent(sessionCode)}/transcript`)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {

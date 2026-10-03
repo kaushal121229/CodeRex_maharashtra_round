@@ -31,14 +31,52 @@ export function App() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [meetingEndedMessage, setMeetingEndedMessage] = useState<string | null>(null);
 
-  // Check URL path and query parameters on load (e.g. /join/RT-48291 or ?session=RT-48291)
-  useEffect(() => {
-    const pathname = window.location.pathname;
-    const pathMatch = pathname.match(/\/join\/([^/?#]+)/i);
+  const navigateTo = (newView: AppView, path?: string) => {
+    setView(newView);
+    if (path && window.location.pathname !== path) {
+      window.history.pushState(null, '', path);
+    }
+  };
 
-    if (pathMatch && pathMatch[1]) {
-      const parsedRoom = decodeURIComponent(pathMatch[1]).toUpperCase();
+  const syncRouteFromUrl = () => {
+    const pathname = window.location.pathname;
+    const joinMatch = pathname.match(/^\/join\/([^/?#]+)/i);
+    const meetingMatch = pathname.match(/^\/meeting\/([^/?#]+)/i);
+
+    if (joinMatch && joinMatch[1]) {
+      const parsedRoom = decodeURIComponent(joinMatch[1]).toUpperCase();
       setInitialJoinCode(parsedRoom);
+      setView('join');
+      return;
+    }
+
+    if (meetingMatch && meetingMatch[1]) {
+      const roomCode = decodeURIComponent(meetingMatch[1]).toUpperCase();
+      const savedSession = sessionStorage.getItem('roundtable_active_session');
+      const savedParticipant = sessionStorage.getItem('roundtable_active_participant');
+      if (savedSession && savedParticipant) {
+        try {
+          const sessObj = JSON.parse(savedSession);
+          if ((sessObj.code || sessObj.room_id) === roomCode) {
+            setSessionCode(roomCode);
+            setSessionTitle(sessObj.title || 'Roundtable Discussion');
+            setCurrentParticipant(JSON.parse(savedParticipant));
+            setView('session');
+            return;
+          }
+        } catch (_) {}
+      }
+      setInitialJoinCode(roomCode);
+      setView('join');
+      return;
+    }
+
+    if (pathname === '/create') {
+      setView('create');
+      return;
+    }
+
+    if (pathname === '/join') {
       setView('join');
       return;
     }
@@ -62,8 +100,15 @@ export function App() {
         setSessionTitle(sessObj.title || 'Roundtable Discussion');
         setCurrentParticipant(partObj);
         setView('session');
+        return;
       } catch (_) {}
     }
+  };
+
+  useEffect(() => {
+    syncRouteFromUrl();
+    window.addEventListener('popstate', syncRouteFromUrl);
+    return () => window.removeEventListener('popstate', syncRouteFromUrl);
   }, []);
 
   const showToast = (text: string, type: 'info' | 'success' | 'warn' = 'info') => {
@@ -87,7 +132,7 @@ export function App() {
 
     setSessionCode(code);
     setCurrentParticipant(formattedPart);
-    setView('session');
+    navigateTo('session', `/meeting/${encodeURIComponent(code)}`);
     setActiveTab('dashboard');
 
     sessionStorage.setItem('roundtable_active_session', JSON.stringify({ code, title: 'Roundtable Meeting' }));
@@ -109,7 +154,7 @@ export function App() {
 
     setSessionCode(code);
     setCurrentParticipant(formattedPart);
-    setView('session');
+    navigateTo('session', `/meeting/${encodeURIComponent(code)}`);
     setActiveTab('dashboard');
 
     sessionStorage.setItem('roundtable_active_session', JSON.stringify({ code, title: 'Roundtable Meeting' }));
@@ -141,7 +186,7 @@ export function App() {
       sessionStorage.removeItem('roundtable_active_participant');
       setCurrentParticipant(null);
       setSessionCode('');
-      setView('landing');
+      navigateTo('landing', '/');
       setActiveTab('dashboard');
     }
   };
