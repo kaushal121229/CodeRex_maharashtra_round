@@ -3,7 +3,8 @@
  * Supports local development and production cloud deployment URLs.
  */
 
-export const DEFAULT_PUBLIC_BACKEND_URL = 'https://varied-workforce-holds-journals.trycloudflare.com';
+export const DEFAULT_PUBLIC_BACKEND_URL = 'https://roads-distribute-rely-laughing.trycloudflare.com';
+
 
 export function getApiBaseUrl(): string {
   let envApi = import.meta.env.VITE_API_URL;
