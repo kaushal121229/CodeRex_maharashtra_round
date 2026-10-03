@@ -21,6 +21,8 @@ class DeviceAudioBuffer:
         self.audio_frames: List[np.ndarray] = []
         self.frame_timestamps: List[float] = []
         self.is_speaking = False
+        self.has_speech_in_buffer = False
+        self.silent_chunks_count = 0
         self.speech_start_time = 0.0
         self.last_audio_time = time.time()
         self.recent_rms_values: List[float] = []
@@ -43,11 +45,16 @@ class DeviceAudioBuffer:
         if len(self.recent_rms_values) > 20:
             self.recent_rms_values.pop(0)
 
-        if is_speech and not self.is_speaking:
-            self.is_speaking = True
-            self.speech_start_time = client_timestamp
-        elif not is_speech and self.is_speaking:
-            self.is_speaking = False
+        if is_speech:
+            self.has_speech_in_buffer = True
+            self.silent_chunks_count = 0
+            if not self.is_speaking:
+                self.is_speaking = True
+                self.speech_start_time = client_timestamp
+        else:
+            self.silent_chunks_count += 1
+            if self.silent_chunks_count >= 2:
+                self.is_speaking = False
 
         return is_speech, rms, snr
 
@@ -68,6 +75,9 @@ class DeviceAudioBuffer:
         self.audio_frames.clear()
         self.frame_timestamps.clear()
         self.accumulated_samples_count = 0
+        self.has_speech_in_buffer = False
+        self.silent_chunks_count = 0
+        self.is_speaking = False
         return concatenated, t_start, t_end
 
 
@@ -125,14 +135,20 @@ class SessionAudioCoordinator:
             self.total_processed_chunks += 1
             is_speech, rms, snr = buf.add_chunk(audio_chunk, client_timestamp)
 
-            # Check if this buffer has collected enough audio for a speech segment
-            # e.g., 1.5 seconds of 16kHz audio (24,000 samples) or speech paused
-            min_segment_samples = int(settings.SAMPLE_RATE * 1.5)
+            # If buffer has NO detected speech, purge it when it reaches ~2.0s without running Whisper
+            if not buf.has_speech_in_buffer:
+                if buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 2.0):
+                    buf.flush_audio()
+                return []
+
+            # Buffer has active or recently completed speech!
             should_process = False
 
-            if buf.accumulated_samples_count >= min_segment_samples:
+            # Case A: Long continuous speech reached 2.5s (stream partial turn)
+            if buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 2.5):
                 should_process = True
-            elif not buf.is_speaking and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 0.5):
+            # Case B: Natural pause after speech (at least 2 silent chunks = ~1.0s pause, total audio >= 1.0s)
+            elif not buf.is_speaking and buf.silent_chunks_count >= 2 and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 1.0):
                 should_process = True
 
             if not should_process:
@@ -179,9 +195,9 @@ class SessionAudioCoordinator:
             if len(audio_samples) == 0:
                 return []
 
-            # Skip STT for silent frames to save CPU for real speech
+            # Safety check: skip STT only if overall buffer energy is negligible
             rms_check = buf.vad.compute_rms(audio_samples)
-            if rms_check < settings.VAD_RMS_THRESHOLD * 0.7:
+            if rms_check < settings.VAD_RMS_THRESHOLD * 0.5:
                 return []
 
             # Run STT

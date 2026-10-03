@@ -76,7 +76,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
   const handleNewCaption = useCallback((seg: TranscriptSegment) => {
     setCaptions((prev) => {
-      if (prev.some((p) => p.text === seg.text && Math.abs(p.start_timestamp - seg.start_timestamp) < 0.5)) {
+      const isDuplicate = prev.some(
+        (p) =>
+          p.participant_id === seg.participant_id &&
+          (p.text.toLowerCase().trim() === seg.text.toLowerCase().trim() ||
+           seg.text.toLowerCase().includes(p.text.toLowerCase()) ||
+           p.text.toLowerCase().includes(seg.text.toLowerCase())) &&
+          Math.abs(p.start_timestamp - seg.start_timestamp) < 3.0
+      );
+      if (isDuplicate) {
         return prev;
       }
       return [...prev, seg];

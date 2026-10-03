@@ -178,7 +178,7 @@ export function useAudioCapture({
           const recognition = new SpeechRecognition();
           recognition.continuous = true;
           recognition.interimResults = false;
-          recognition.lang = 'en-US';
+          recognition.lang = (typeof navigator !== 'undefined' && navigator.language) ? navigator.language : 'en-US';
 
           let speechStartTime = Date.now() / 1000;
 

@@ -23,7 +23,7 @@ class Settings(BaseModel):
     OVERLAP_ENERGY_RATIO_THRESHOLD: float = 0.55  # If secondary device energy > 55% of primary, flag potential overlap
     
     # Speech-to-Text
-    WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "tiny.en")
+    WHISPER_MODEL_SIZE: str = os.getenv("WHISPER_MODEL_SIZE", "base.en")
     WHISPER_DEVICE: str = os.getenv("WHISPER_DEVICE", "cpu")
     WHISPER_COMPUTE_TYPE: str = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
     

@@ -98,19 +98,28 @@ class STTEngine:
                 beam_size=1,  # Greedy for minimal latency in live streaming
                 language="en",
                 condition_on_previous_text=False,
-                vad_filter=False  # We run our own multi-device VAD upstream
+                vad_filter=True,  # Built-in Silero VAD strips out pure silence/noise to prevent hallucinations
+                vad_parameters=dict(min_silence_duration_ms=400),
+                no_speech_threshold=0.6,
             )
             
             transcript_parts = []
             confidences = []
             for seg in segments:
-                if seg.text.strip():
-                    transcript_parts.append(seg.text.strip())
-                    # avg_logprob mapped to pseudo-confidence [0, 1]
+                text = seg.text.strip()
+                if text:
                     conf = float(np.exp(seg.avg_logprob)) if seg.avg_logprob else 0.95
-                    confidences.append(min(max(conf, 0.1), 1.0))
+                    conf = min(max(conf, 0.1), 1.0)
+                    
+                    # Reject known Whisper hallucination loops when confidence is mediocre
+                    lower = text.lower().rstrip('.!?,')
+                    if lower in {"thank you", "thanks for watching", "thank you for watching", "subscribe", "you", "bye"} and conf < 0.75:
+                        continue
+
+                    transcript_parts.append(text)
+                    confidences.append(conf)
             
-            final_text = " ".join(transcript_parts)
+            final_text = " ".join(transcript_parts).strip()
             avg_conf = float(np.mean(confidences)) if confidences else 0.95
             return final_text, avg_conf
         except Exception as e:
