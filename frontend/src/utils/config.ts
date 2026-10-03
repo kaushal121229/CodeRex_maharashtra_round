@@ -8,6 +8,12 @@ export function getApiBaseUrl(): string {
   if (envApi) {
     return envApi.replace(/\/+$/, '');
   }
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return `http://${host}:8000`;
+    }
+  }
   return '';
 }
 
@@ -20,12 +26,21 @@ export function getWsBaseUrl(roomId: string, participantId?: string): string {
     return participantId ? `${base}/ws/${cleanRoom}/${participantId}` : `${base}/ws/${cleanRoom}`;
   }
 
-  // Derive from current window origin
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  return participantId
-    ? `${protocol}//${host}/ws/${cleanRoom}/${participantId}`
-    : `${protocol}//${host}/ws/${cleanRoom}`;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return participantId
+        ? `ws://${host}:8000/ws/${cleanRoom}/${participantId}`
+        : `ws://${host}:8000/ws/${cleanRoom}`;
+    }
+
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return participantId
+      ? `${protocol}//${window.location.host}/ws/${cleanRoom}/${participantId}`
+      : `${protocol}//${window.location.host}/ws/${cleanRoom}`;
+  }
+
+  return `ws://localhost:8000/ws/${cleanRoom}`;
 }
 
 export function getPublicAppUrl(): string {
