@@ -3,6 +3,7 @@ import string
 import asyncio
 import time
 import uuid
+from datetime import datetime, timezone
 
 import json
 import logging
@@ -12,7 +13,7 @@ from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, WebSocket, WebSocketDisconnect, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, or_
 
 from app.config import settings
 from app.database import init_db, get_db
@@ -233,13 +234,13 @@ async def join_room(room_id: str, payload: JoinRoomRequest, db: AsyncSession = D
         raise HTTPException(status_code=404, detail="Active meeting room not found or meeting has ended")
 
     # Check for existing participant to prevent duplicates on reconnection
+    conditions = [ParticipantModel.device_id == payload.device_id]
+    if payload.participant_id:
+        conditions.append(ParticipantModel.participant_id == payload.participant_id)
+
     p_stmt = select(ParticipantModel).where(
         ParticipantModel.session_id == session_obj.id,
-        (
-            (ParticipantModel.participant_id == payload.participant_id) if payload.participant_id else False
-        ) | (
-            ParticipantModel.device_id == payload.device_id
-        )
+        or_(*conditions)
     )
     p_res = await db.execute(p_stmt)
     existing_p = p_res.scalar_one_or_none()
@@ -274,6 +275,9 @@ async def join_room(room_id: str, payload: JoinRoomRequest, db: AsyncSession = D
             "session_id": session_obj.id,
             "session_code": session_obj.code,
             "title": session_obj.title,
+            "participant_id": existing_p.participant_id or existing_p.id,
+            "device_id": existing_p.device_id,
+            "display_name": existing_p.display_name,
             "participant": part_info,
             "is_reconnect": True
         }
@@ -318,6 +322,9 @@ async def join_room(room_id: str, payload: JoinRoomRequest, db: AsyncSession = D
         "session_id": session_obj.id,
         "session_code": session_obj.code,
         "title": session_obj.title,
+        "participant_id": next_pid,
+        "device_id": new_p.device_id,
+        "display_name": new_p.display_name,
         "participant": part_info,
         "is_reconnect": False
     }
@@ -544,7 +551,9 @@ async def websocket_room_endpoint(
         )
         is_joined = True
     else:
-        await websocket.accept()
+        from starlette.websockets import WebSocketState
+        if websocket.client_state == WebSocketState.CONNECTING:
+            await websocket.accept()
 
     try:
         while True:

@@ -37,7 +37,9 @@ class ConnectionManager:
         websocket: WebSocket,
         role: str = "participant"
     ):
-        await websocket.accept()
+        from starlette.websockets import WebSocketState
+        if websocket.client_state == WebSocketState.CONNECTING:
+            await websocket.accept()
         room_id = session_code
 
         if room_id not in self.active_connections:

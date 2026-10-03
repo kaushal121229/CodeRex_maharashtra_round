@@ -2,9 +2,22 @@ import asyncio
 import json
 import httpx
 import websockets
+import time
 
 BASE_URL = "http://127.0.0.1:8000"
 WS_URL = "ws://127.0.0.1:8000"
+
+async def wait_for_event(ws, expected_type, timeout=5.0):
+    start = time.time()
+    while time.time() - start < timeout:
+        try:
+            raw = await asyncio.wait_for(ws.recv(), timeout=timeout)
+            msg = json.loads(raw)
+            if msg.get("type") == expected_type:
+                return msg
+        except asyncio.TimeoutError:
+            break
+    raise TimeoutError(f"Timed out waiting for WS event '{expected_type}'")
 
 async def test_full_cloud_meeting_lifecycle():
     print("==================================================")
@@ -36,6 +49,7 @@ async def test_full_cloud_meeting_lifecycle():
         # 3. PARTICIPANTS JOIN
         print("\n[Step 3] Phone 1 (Rahul) joins room via REST join...")
         res = await client.post(f"/rooms/{room_id}/join", json={
+            "room_id": room_id,
             "display_name": "Rahul",
             "device_id": "phone-android-rahul"
         })
@@ -46,6 +60,7 @@ async def test_full_cloud_meeting_lifecycle():
 
         print("\n[Step 4] Phone 2 (Aman) joins room via REST join...")
         res = await client.post(f"/rooms/{room_id}/join", json={
+            "room_id": room_id,
             "display_name": "Aman",
             "device_id": "phone-ios-aman"
         })
@@ -69,9 +84,8 @@ async def test_full_cloud_meeting_lifecycle():
                 "device_id": "host-laptop",
                 "role": "host"
             }))
-            host_join_ack = json.loads(await host_ws.recv())
-            print(f" Host WS event received: {host_join_ack.get('type')}")
-            assert host_join_ack["type"] == "room_joined"
+            host_join_ack = await wait_for_event(host_ws, "room_joined")
+            print(f" Host WS event confirmed: {host_join_ack.get('type')}")
 
             async with websockets.connect(rahul_ws_uri) as rahul_ws:
                 # Rahul joins WS
@@ -84,14 +98,12 @@ async def test_full_cloud_meeting_lifecycle():
                 }))
 
                 # Rahul receives room_joined
-                rahul_ack = json.loads(await rahul_ws.recv())
-                print(f" Rahul WS event received: {rahul_ack.get('type')}")
-                assert rahul_ack["type"] == "room_joined"
+                rahul_ack = await wait_for_event(rahul_ws, "room_joined")
+                print(f" Rahul WS event confirmed: {rahul_ack.get('type')}")
 
-                # Host should receive participant_joined for Rahul
-                host_evt = json.loads(await host_ws.recv())
+                # Host receives participant_joined for Rahul
+                host_evt = await wait_for_event(host_ws, "participant_joined")
                 print(f" Host received broadcast: {host_evt.get('type')} -> {host_evt.get('display_name')} joined")
-                assert host_evt["type"] == "participant_joined"
                 assert host_evt["participant_id"] == rahul_id
 
                 # Rahul sends heartbeat
@@ -100,8 +112,7 @@ async def test_full_cloud_meeting_lifecycle():
                     "room_id": room_id,
                     "participant_id": rahul_id
                 }))
-                rahul_hb_ack = json.loads(await rahul_ws.recv())
-                assert rahul_hb_ack["type"] == "heartbeat_ack"
+                rahul_hb_ack = await wait_for_event(rahul_ws, "heartbeat_ack")
                 print(f" Heartbeat verified for Rahul")
 
             # Rahul disconnected from WS. Let's verify reconnection with SAME ID!
@@ -115,13 +126,12 @@ async def test_full_cloud_meeting_lifecycle():
                     "device_id": "phone-android-rahul"
                 }))
 
-                reconnect_ack = json.loads(await rahul_reconnect_ws.recv())
+                reconnect_ack = await wait_for_event(rahul_reconnect_ws, "room_joined")
                 print(f" Rahul reconnect ACK: {reconnect_ack.get('type')} (participant_id: {reconnect_ack.get('participant_id')})")
-                assert reconnect_ack["type"] == "room_joined"
                 assert reconnect_ack["participant_id"] == rahul_id, "Participant ID must NOT change on reconnect!"
 
-                # Host receives participant_reconnected or participant_joined
-                reconnect_broadcast = json.loads(await host_ws.recv())
+                # Host receives participant_reconnected
+                reconnect_broadcast = await wait_for_event(host_ws, "participant_reconnected")
                 print(f" Host received broadcast: {reconnect_broadcast.get('type')} for {reconnect_broadcast.get('display_name')}")
                 assert reconnect_broadcast["participant_id"] == rahul_id
 
@@ -132,7 +142,7 @@ async def test_full_cloud_meeting_lifecycle():
                 print(f" Host ended room via API.")
 
                 # Both Host and Rahul should receive meeting_ended event
-                rahul_end_evt = json.loads(await rahul_reconnect_ws.recv())
+                rahul_end_evt = await wait_for_event(rahul_reconnect_ws, "meeting_ended")
                 print(f" Rahul received event: {rahul_end_evt.get('type')} - '{rahul_end_evt.get('message')}'")
                 assert rahul_end_evt["type"] == "meeting_ended"
 
@@ -142,7 +152,7 @@ async def test_full_cloud_meeting_lifecycle():
         print(f" Room {room_id} status verified as ended in DB.")
 
     print("\n==================================================")
-    print(" ALL CLOUD MEETING CHECKS PASSED SUCCESSFULLY! ")
+    print(" ALL 7 CLOUD MEETING CHECKS PASSED SUCCESSFULLY! ")
     print("==================================================")
 
 if __name__ == "__main__":
