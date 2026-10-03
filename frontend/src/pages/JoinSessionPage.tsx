@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Smartphone, Mic, ArrowLeft, ArrowRight, Link as LinkIcon, Check, Copy } from 'lucide-react';
 import { getOrCreateDeviceId } from '../utils/deviceUtils';
 import { calculateRMS } from '../utils/audioUtils';
-import { getApiBaseUrl, getPublicAppUrl } from '../utils/config';
+import { getApiBaseUrl, getPublicAppUrl, setCustomApiUrl } from '../utils/config';
 
 interface JoinSessionPageProps {
   initialCode?: string;
@@ -32,6 +32,7 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [backendInput, setBackendInput] = useState(getApiBaseUrl() || '');
 
   // Mic test state
   const [isTestingMic, setIsTestingMic] = useState(false);
@@ -115,6 +116,14 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     const apiBase = getApiBaseUrl();
     console.log('[JOIN] Joining room', cleanCode);
 
+    if (!apiBase) {
+      setError(
+        'Backend URL not configured: On Vercel, you need to add the VITE_API_URL environment variable in your Vercel Project Settings pointing to your deployed backend (e.g. Render / Railway). Or paste your backend URL below to connect immediately.'
+      );
+      setIsLoading(false);
+      return;
+    }
+
     // Check if participant had a previous ID stored for this room
     const savedPid = localStorage.getItem(`roundtable_pid_${cleanCode}`);
 
@@ -132,8 +141,18 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
       });
 
       if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.detail || 'Meeting room not found or has ended. Please check the Room ID.');
+        const text = await resp.text();
+        if (resp.status === 404 && (text.includes('NOT_FOUND') || text.includes('bom1') || text.includes('page could not be found'))) {
+          throw new Error(
+            'Backend is not connected: The request went to Vercel instead of your FastAPI server. Make sure VITE_API_URL is set in Vercel Project Settings and Redeploy, or paste your backend URL below.'
+          );
+        }
+        let errorMsg = 'Meeting room not found or has ended. Please check the Room ID.';
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed.detail) errorMsg = parsed.detail;
+        } catch (_) {}
+        throw new Error(errorMsg);
       }
 
       const data = await resp.json();
@@ -174,8 +193,39 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
         </div>
 
         {error && (
-          <div className="p-3 mb-5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-            {error}
+          <div className="mb-5 space-y-3">
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs leading-relaxed">
+              {error}
+            </div>
+            <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-xs space-y-2">
+              <div className="font-semibold text-indigo-300">
+                ⚡ Quick Fix: Connect to Public Backend
+              </div>
+              <p className="text-slate-400 text-[11px]">
+                Paste your Render, Railway, or ngrok backend URL below to connect without redeploying:
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  placeholder="https://your-backend.onrender.com"
+                  value={backendInput}
+                  onChange={(e) => setBackendInput(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg bg-slate-950/80 border border-white/10 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-indigo-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (backendInput.trim()) {
+                      setCustomApiUrl(backendInput.trim());
+                      setError(null);
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer transition-colors shrink-0"
+                >
+                  Connect
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

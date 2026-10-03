@@ -13,8 +13,18 @@ export function getApiBaseUrl(): string {
     return envApi;
   }
 
-  // Local development fallback
+  // Check localStorage runtime override
   if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('roundtable_api_url');
+    if (stored && stored.trim()) {
+      let url = stored.trim().replace(/\/+$/, '');
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = `https://${url}`;
+      }
+      return url;
+    }
+
+    // Local development fallback
     const host = window.location.hostname;
     if (host === 'localhost' || host === '127.0.0.1') {
       return `http://${host}:8000`;
@@ -22,6 +32,16 @@ export function getApiBaseUrl(): string {
   }
 
   return '';
+}
+
+export function setCustomApiUrl(url: string): void {
+  if (typeof window !== 'undefined') {
+    if (url.trim()) {
+      localStorage.setItem('roundtable_api_url', url.trim());
+    } else {
+      localStorage.removeItem('roundtable_api_url');
+    }
+  }
 }
 
 export function getWsBaseUrl(roomId: string, _participantId?: string): string {
@@ -75,9 +95,5 @@ export function getPublicAppUrl(): string {
 }
 
 export function isCloudBackendConfigured(): boolean {
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') return true;
-  }
-  return Boolean(import.meta.env.VITE_API_URL);
+  return Boolean(getApiBaseUrl());
 }
