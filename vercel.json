@@ -3,7 +3,6 @@
   "framework": "vite",
   "buildCommand": "npm run build --workspace=frontend",
   "outputDirectory": "frontend/dist",
-  "cleanUrls": true,
   "rewrites": [
     {
       "source": "/(.*)",
