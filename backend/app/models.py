@@ -46,7 +46,6 @@ class ParticipantModel(Base):
     last_seen_at = Column(DateTime(timezone=True), default=utc_now)
 
     session = relationship("SessionModel", back_populates="participants")
-    transcript_segments = relationship("TranscriptSegmentModel", back_populates="participant")
 
 
 class TranscriptSegmentModel(Base):
@@ -54,7 +53,7 @@ class TranscriptSegmentModel(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     session_id = Column(String(36), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False, index=True)
-    participant_id = Column(String(36), ForeignKey("participants.id", ondelete="SET NULL"), nullable=True, index=True)
+    participant_id = Column(String(64), nullable=True, index=True)
     speaker_name = Column(String(64), nullable=False)
     text = Column(Text, nullable=False)
     start_timestamp = Column(Float, nullable=False)  # Session relative or epoch seconds
@@ -66,7 +65,7 @@ class TranscriptSegmentModel(Base):
     created_at = Column(DateTime(timezone=True), default=utc_now)
 
     session = relationship("SessionModel", back_populates="transcript_segments")
-    participant = relationship("ParticipantModel", back_populates="transcript_segments")
+
 
 class EvaluationMetricModel(Base):
     __tablename__ = "evaluation_metrics"

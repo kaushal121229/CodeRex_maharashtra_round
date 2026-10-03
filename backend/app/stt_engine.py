@@ -64,6 +64,15 @@ class STTEngine:
             except Exception as e:
                 logger.warning(f"Groq Whisper failed: {e}. Falling back to local model.")
 
+        # Optional cloud OpenAI Whisper if API key is provided
+        if settings.OPENAI_API_KEY:
+            try:
+                text, conf = await self._transcribe_openai(samples, sample_rate)
+                latency_ms = (time.perf_counter() - start_time) * 1000.0
+                return text.strip(), conf, latency_ms
+            except Exception as e:
+                logger.warning(f"OpenAI Whisper failed: {e}. Falling back to local model.")
+
         # Local faster-whisper transcription
         if not self.is_ready:
             # Try to load if not yet initialized
@@ -134,6 +143,33 @@ class STTEngine:
             resp.raise_for_status()
             res_data = resp.json()
             return res_data.get("text", ""), 0.98
+
+    async def _transcribe_openai(self, samples: np.ndarray, sample_rate: int) -> tuple[str, float]:
+        """Transcribe using OpenAI Whisper API."""
+        import httpx
+        wav_io = io.BytesIO()
+        with wave.open(wav_io, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(sample_rate)
+            int_samples = (np.clip(samples, -1.0, 1.0) * 32767).astype(np.int16)
+            wf.writeframes(int_samples.tobytes())
+        wav_io.seek(0)
+
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            headers = {"Authorization": f"Bearer {settings.OPENAI_API_KEY}"}
+            files = {"file": ("audio.wav", wav_io.getvalue(), "audio/wav")}
+            data = {"model": "whisper-1", "language": "en"}
+            resp = await client.post(
+                "https://api.openai.com/v1/audio/transcriptions",
+                headers=headers,
+                files=files,
+                data=data
+            )
+            resp.raise_for_status()
+            res_data = resp.json()
+            return res_data.get("text", ""), 0.97
+
 
 # Global singleton
 stt_engine = STTEngine()

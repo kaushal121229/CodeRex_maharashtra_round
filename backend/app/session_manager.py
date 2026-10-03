@@ -184,9 +184,13 @@ class ConnectionManager:
                 p["status"] = "disconnected"
                 p["connection_status"] = "disconnected"
 
+        # Clear audio coordinator buffers for this room
+        audio_registry.remove(room_id)
+
         # Mark session ended in database
         asyncio.create_task(self._mark_room_ended_db(room_id))
         logger.info(f"Room {room_id} ended by host")
+
 
     async def remove_participant(self, room_id: str, participant_id: str):
         """
