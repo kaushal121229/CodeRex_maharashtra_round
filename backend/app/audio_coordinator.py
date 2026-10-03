@@ -132,7 +132,7 @@ class SessionAudioCoordinator:
 
             if buf.accumulated_samples_count >= min_segment_samples:
                 should_process = True
-            elif not buf.is_speaking and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 0.8):
+            elif not buf.is_speaking and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 0.5):
                 should_process = True
 
             if not should_process:
@@ -177,6 +177,11 @@ class SessionAudioCoordinator:
             # Process transcription for the ready buffer
             audio_samples, t_start, t_end = buf.flush_audio()
             if len(audio_samples) == 0:
+                return []
+
+            # Skip STT for silent frames to save CPU for real speech
+            rms_check = buf.vad.compute_rms(audio_samples)
+            if rms_check < settings.VAD_RMS_THRESHOLD * 0.7:
                 return []
 
             # Run STT

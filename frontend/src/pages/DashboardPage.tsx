@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Mic, MicOff, Copy, Check, QrCode, Smartphone, Layers, AlertCircle, Hash, Link as LinkIcon, Power, Users } from 'lucide-react';
 import { Participant, TranscriptSegment, LiveMetrics } from '../types';
 import { useRoundtableSocket } from '../hooks/useRoundtableSocket';
@@ -66,7 +66,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     return () => clearInterval(metricsInterval);
   }, [sessionCode, apiBase]);
 
-  const handleNewCaption = (seg: TranscriptSegment) => {
+  const triggerOverlapAlert = useCallback((speakers: string) => {
+    setActiveOverlap(speakers);
+    if (overlapTimeoutRef.current) clearTimeout(overlapTimeoutRef.current);
+    overlapTimeoutRef.current = window.setTimeout(() => {
+      setActiveOverlap(null);
+    }, 6000);
+  }, []);
+
+  const handleNewCaption = useCallback((seg: TranscriptSegment) => {
     setCaptions((prev) => {
       if (prev.some((p) => p.text === seg.text && Math.abs(p.start_timestamp - seg.start_timestamp) < 0.5)) {
         return prev;
@@ -77,15 +85,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     if (seg.is_overlap) {
       triggerOverlapAlert(seg.overlap_with || 'Multiple speakers');
     }
-  };
-
-  const triggerOverlapAlert = (speakers: string) => {
-    setActiveOverlap(speakers);
-    if (overlapTimeoutRef.current) clearTimeout(overlapTimeoutRef.current);
-    overlapTimeoutRef.current = window.setTimeout(() => {
-      setActiveOverlap(null);
-    }, 6000);
-  };
+  }, [triggerOverlapAlert]);
 
   // WebSocket Connection Hook
   const {
@@ -104,14 +104,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     displayName: participant.display_name,
     avatarColor: participant.avatar_color || '#14B8A6',
     onNewCaption: handleNewCaption,
-    onOverlapAlert: (speakers) => triggerOverlapAlert(speakers),
-    onParticipantEvent: (msg, type) => {
-      if (onParticipantToast) onParticipantToast(msg, type);
-    },
-    onMeetingEnded: (msg) => {
-      if (onMeetingEnded) onMeetingEnded(msg);
-    },
+    onOverlapAlert: triggerOverlapAlert,
+    onParticipantEvent: onParticipantToast,
+    onMeetingEnded: onMeetingEnded,
   });
+
+  const handleAudioChunk = useCallback((base64: string, rms: number, timestamp: number) => {
+    sendAudioChunk(base64, rms, timestamp);
+  }, [sendAudioChunk]);
+
+  const handleLocalSpeech = useCallback((text: string, tStart: number, tEnd: number, conf: number) => {
+    sendSyncSpeech(text, tStart, tEnd, conf);
+  }, [sendSyncSpeech]);
 
   // Audio Capture Hook
   const {
@@ -121,12 +125,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
     startCapture,
   } = useAudioCapture({
     isMuted,
-    onAudioChunk: (base64, rms, timestamp) => {
-      sendAudioChunk(base64, rms, timestamp);
-    },
-    onLocalSpeech: (text, tStart, tEnd, conf) => {
-      sendSyncSpeech(text, tStart, tEnd, conf);
-    },
+    onAudioChunk: handleAudioChunk,
+    onLocalSpeech: handleLocalSpeech,
   });
 
   useEffect(() => {
@@ -332,11 +332,19 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({
 
       {/* Mic Permission Warning */}
       {hasPermission === false && (
-        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm flex items-center space-x-3">
-          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
-          <div>
-            <strong>Microphone Permission Needed:</strong> {errorMessage || 'Please allow microphone access to participate as an audio node.'}
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-sm flex items-center justify-between gap-3">
+          <div className="flex items-center space-x-3">
+            <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+            <div>
+              <strong>Microphone Permission Needed:</strong> {errorMessage || 'Please allow microphone access to participate as an audio node.'}
+            </div>
           </div>
+          <button
+            onClick={() => startCapture()}
+            className="px-3.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-xs font-semibold rounded-xl shrink-0 cursor-pointer transition-colors"
+          >
+            Allow Microphone
+          </button>
         </div>
       )}
 

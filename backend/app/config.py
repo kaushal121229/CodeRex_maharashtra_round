@@ -18,7 +18,7 @@ class Settings(BaseModel):
     CHUNK_DURATION_MS: int = 500  # 500ms audio chunks from client
     
     # Coordination & VAD
-    VAD_RMS_THRESHOLD: float = float(os.getenv("VAD_RMS_THRESHOLD", "0.015"))  # Minimum RMS energy for speech
+    VAD_RMS_THRESHOLD: float = float(os.getenv("VAD_RMS_THRESHOLD", "0.008"))  # Minimum RMS energy for speech
     SPEECH_BUFFER_WINDOW_SEC: float = 2.0  # Sliding audio window for transcription
     OVERLAP_ENERGY_RATIO_THRESHOLD: float = 0.55  # If secondary device energy > 55% of primary, flag potential overlap
     

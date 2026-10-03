@@ -34,22 +34,56 @@ export function useRoundtableSocket({
   const isMountedRef = useRef(true);
   const isIntentionalCloseRef = useRef(false);
 
+  // Store callback props in stable refs so they do not trigger socket reconnects
+  const onNewCaptionRef = useRef(onNewCaption);
+  const onOverlapAlertRef = useRef(onOverlapAlert);
+  const onParticipantEventRef = useRef(onParticipantEvent);
+  const onMeetingEndedRef = useRef(onMeetingEnded);
+
+  useEffect(() => {
+    onNewCaptionRef.current = onNewCaption;
+  }, [onNewCaption]);
+
+  useEffect(() => {
+    onOverlapAlertRef.current = onOverlapAlert;
+  }, [onOverlapAlert]);
+
+  useEffect(() => {
+    onParticipantEventRef.current = onParticipantEvent;
+  }, [onParticipantEvent]);
+
+  useEffect(() => {
+    onMeetingEndedRef.current = onMeetingEnded;
+  }, [onMeetingEnded]);
+
   const connect = useCallback(() => {
     if (!sessionCode || !participantId) return;
+
+    // Avoid creating duplicate sockets if one is already open or connecting
+    if (socketRef.current && (socketRef.current.readyState === WebSocket.OPEN || socketRef.current.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    if (socketRef.current) {
+      socketRef.current.onclose = null;
+      socketRef.current.onerror = null;
+      socketRef.current.close();
+      socketRef.current = null;
+    }
 
     isIntentionalCloseRef.current = false;
     const wsUrl = getWsBaseUrl(sessionCode, participantId);
     const queryChar = wsUrl.includes('?') ? '&' : '?';
     const fullWsUrl = `${wsUrl}${queryChar}device_id=${encodeURIComponent(deviceId)}&display_name=${encodeURIComponent(displayName)}&avatar_color=${encodeURIComponent(avatarColor)}`;
 
-    console.log('[WS] Connecting', fullWsUrl);
+    console.log('[WS] Connecting to:', fullWsUrl);
     setConnectionStatus('reconnecting');
     const ws = new WebSocket(fullWsUrl);
     socketRef.current = ws;
 
     ws.onopen = () => {
       if (!isMountedRef.current) return;
-      console.log('[WS] Connected');
+      console.log('[WS] Connected successfully');
       setConnectionStatus('connected');
 
       // Send join_room handshake event
@@ -93,15 +127,15 @@ export function useRoundtableSocket({
               return [...filtered, data.participant];
             });
           }
-          if (data.message && onParticipantEvent) {
-            onParticipantEvent(data.message, 'join');
+          if (data.message && onParticipantEventRef.current) {
+            onParticipantEventRef.current(data.message, 'join');
           }
         } else if (msgType === 'participant_left') {
           if (data.participant_id) {
             setParticipants((prev) => prev.filter(p => p.participant_id !== data.participant_id));
           }
-          if (data.message && onParticipantEvent) {
-            onParticipantEvent(data.message, 'leave');
+          if (data.message && onParticipantEventRef.current) {
+            onParticipantEventRef.current(data.message, 'leave');
           }
         } else if (msgType === 'participant_reconnected') {
           if (data.participant) {
@@ -110,28 +144,28 @@ export function useRoundtableSocket({
               return [...filtered, data.participant];
             });
           }
-          if (data.message && onParticipantEvent) {
-            onParticipantEvent(data.message, 'reconnect');
+          if (data.message && onParticipantEventRef.current) {
+            onParticipantEventRef.current(data.message, 'reconnect');
           }
         } else if (msgType === 'participants_update') {
           setParticipants(data.participants || []);
         } else if (msgType === 'meeting_ended') {
           isIntentionalCloseRef.current = true;
-          if (onMeetingEnded) {
-            onMeetingEnded(data.message || 'Meeting ended by host.');
+          if (onMeetingEndedRef.current) {
+            onMeetingEndedRef.current(data.message || 'Meeting ended by host.');
           }
         } else if (msgType === 'removed_by_host') {
           isIntentionalCloseRef.current = true;
-          if (onMeetingEnded) {
-            onMeetingEnded(data.message || 'You have been removed from the meeting by the host.');
+          if (onMeetingEndedRef.current) {
+            onMeetingEndedRef.current(data.message || 'You have been removed from the meeting by the host.');
           }
         } else if (msgType === 'new_caption') {
-          if (onNewCaption && data.segment) {
-            onNewCaption(data.segment);
+          if (onNewCaptionRef.current && data.segment) {
+            onNewCaptionRef.current(data.segment);
           }
         } else if (msgType === 'overlap_alert') {
-          if (onOverlapAlert) {
-            onOverlapAlert(data.speakers || '', data.timestamp || Date.now() / 1000);
+          if (onOverlapAlertRef.current) {
+            onOverlapAlertRef.current(data.speakers || '', data.timestamp || Date.now() / 1000);
           }
         }
       } catch (e) {
@@ -149,9 +183,9 @@ export function useRoundtableSocket({
         return;
       }
 
-      console.log('[WS] Reconnecting...');
+      console.log('[WS] Reconnecting in 2.5s...');
       setConnectionStatus('reconnecting');
-      // Automatic reconnection attempt with backoff
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = window.setTimeout(() => {
         if (isMountedRef.current && !isIntentionalCloseRef.current) {
           connect();
@@ -161,9 +195,12 @@ export function useRoundtableSocket({
 
     ws.onerror = (err) => {
       console.warn('[WS] WebSocket error:', err);
-      ws.close();
+      // Close triggers onclose which initiates reconnect
+      try {
+        ws.close();
+      } catch (_) {}
     };
-  }, [sessionCode, participantId, deviceId, displayName, avatarColor, onNewCaption, onOverlapAlert, onParticipantEvent, onMeetingEnded]);
+  }, [sessionCode, participantId, deviceId, displayName, avatarColor]);
 
   const sendAudioChunk = useCallback((chunkBase64: string, rmsEnergy: number, timestamp: number) => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
@@ -227,6 +264,8 @@ export function useRoundtableSocket({
 
   const leaveRoom = useCallback(() => {
     isIntentionalCloseRef.current = true;
+    if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+    if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({
         type: 'leave_room',
@@ -235,6 +274,7 @@ export function useRoundtableSocket({
       }));
       socketRef.current.close(1000, 'User left meeting');
     }
+    setConnectionStatus('disconnected');
   }, [sessionCode, participantId]);
 
   useEffect(() => {
@@ -246,7 +286,10 @@ export function useRoundtableSocket({
       if (heartbeatIntervalRef.current) clearInterval(heartbeatIntervalRef.current);
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socketRef.current) {
+        socketRef.current.onclose = null;
+        socketRef.current.onerror = null;
         socketRef.current.close();
+        socketRef.current = null;
       }
     };
   }, [connect]);
