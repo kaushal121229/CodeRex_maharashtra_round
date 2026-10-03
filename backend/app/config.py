@@ -30,6 +30,7 @@ class Settings(BaseModel):
     # Cloud API fallbacks (Optional)
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+    OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
     
     # CORS
     CORS_ORIGINS: list[str] = [

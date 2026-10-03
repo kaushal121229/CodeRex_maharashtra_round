@@ -3,6 +3,8 @@ import string
 import asyncio
 import time
 import uuid
+import os
+import httpx
 from datetime import datetime, timezone
 
 import json
@@ -410,6 +412,112 @@ async def export_transcript_txt(code: str, db: AsyncSession = Depends(get_db)):
         media_type="text/plain; charset=utf-8",
         headers={"Content-Disposition": f"attachment; filename=roundtable_{code}_transcript.txt"}
     )
+
+@app.post("/api/sessions/{code}/ai-summary")
+@app.post("/rooms/{code}/ai-summary")
+async def generate_ai_meeting_summary(code: str, db: AsyncSession = Depends(get_db)):
+    """
+    Leverages OpenRouter AI intelligence to generate executive summary, key decisions,
+    and speaker-attributed action items from live conversation transcripts.
+    """
+    clean_code = code.strip().upper()
+    stmt = select(SessionModel).where(SessionModel.code == clean_code)
+    session_obj = (await db.execute(stmt)).scalar_one_or_none()
+    if not session_obj:
+        raise HTTPException(status_code=404, detail="Meeting room not found")
+
+    t_stmt = select(TranscriptSegmentModel).where(
+        TranscriptSegmentModel.session_id == session_obj.id
+    ).order_by(TranscriptSegmentModel.start_timestamp.asc())
+    segments = (await db.execute(t_stmt)).scalars().all()
+
+    if not segments:
+        return {
+            "room_id": clean_code,
+            "title": session_obj.title,
+            "summary": "No spoken dialogue recorded yet in this meeting to summarize.",
+            "action_items": [],
+            "key_decisions": []
+        }
+
+    dialogue = "\n".join([f"[{s.speaker_name}]: {s.text}" for s in segments])
+    api_key = settings.OPENROUTER_API_KEY or os.getenv("OPENROUTER_API_KEY", "")
+
+    if not api_key:
+        return {
+            "room_id": clean_code,
+            "title": session_obj.title,
+            "summary": f"Meeting '{session_obj.title}' concluded with {len(segments)} spoken turns.",
+            "action_items": ["Configure OPENROUTER_API_KEY for deep LLM summarization"],
+            "key_decisions": []
+        }
+
+    prompt = (
+        f"You are the Roundtable AI executive assistant. Given this speaker-attributed conversation transcript:\n\n"
+        f"{dialogue}\n\n"
+        f"Provide a clear, high-impact summary with:\n"
+        f"1. Executive Summary (2-3 sentences)\n"
+        f"2. Key Decisions Made\n"
+        f"3. Action Items (assignee + task)\n"
+    )
+
+    models_to_try = [
+        os.getenv("OPENROUTER_MODEL", "liquid/lfm-2.5-2.6b:free"),
+        "qwen/qwen3.8-27b:free",
+        "apodex/apodex-1.1-mini:free"
+    ]
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            last_err = None
+            for model_name in models_to_try:
+                try:
+                    resp = await client.post(
+                        "https://openrouter.ai/api/v1/chat/completions",
+                        headers={
+                            "Authorization": f"Bearer {api_key}",
+                            "HTTP-Referer": "https://roundtable.live",
+                            "X-Title": "Roundtable Live Captions",
+                            "Content-Type": "application/json"
+                        },
+                        json={
+                            "model": model_name,
+                            "messages": [
+                                {"role": "system", "content": "You are Roundtable AI. Generate crisp, professional meeting summaries with markdown formatting."},
+                                {"role": "user", "content": prompt}
+                            ],
+                            "temperature": 0.3
+                        }
+                    )
+                    if resp.status_code == 200:
+                        result = resp.json()
+                        content = result["choices"][0]["message"]["content"]
+                        return {
+                            "room_id": clean_code,
+                            "title": session_obj.title,
+                            "summary": content,
+                            "model_used": result.get("model", model_name)
+                        }
+                    else:
+                        last_err = f"Model {model_name} returned {resp.status_code}: {resp.text[:150]}"
+                except Exception as inner_e:
+                    last_err = str(inner_e)
+                    continue
+
+            return {
+                "room_id": clean_code,
+                "title": session_obj.title,
+                "summary": f"Could not generate AI summary: {last_err}",
+                "error": last_err
+            }
+    except Exception as e:
+        logger.error(f"OpenRouter call failed: {e}")
+        return {
+            "room_id": clean_code,
+            "title": session_obj.title,
+            "summary": "AI summary generation encountered a network error.",
+            "error": str(e)
+        }
 
 @app.get("/api/sessions/{code}/metrics")
 async def get_session_metrics(code: str, db: AsyncSession = Depends(get_db)):
