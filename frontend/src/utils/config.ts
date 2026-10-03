@@ -3,6 +3,8 @@
  * Supports local development and production cloud deployment URLs.
  */
 
+export const DEFAULT_PUBLIC_BACKEND_URL = 'https://beige-animals-listen.loca.lt';
+
 export function getApiBaseUrl(): string {
   let envApi = import.meta.env.VITE_API_URL;
   if (envApi && typeof envApi === 'string' && envApi.trim()) {
@@ -31,7 +33,7 @@ export function getApiBaseUrl(): string {
     }
   }
 
-  return '';
+  return DEFAULT_PUBLIC_BACKEND_URL;
 }
 
 export function setCustomApiUrl(url: string): void {
