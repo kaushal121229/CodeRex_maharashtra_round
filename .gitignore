@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+venv/
+env/
+ENV/
+*.egg-info/
+
+# Databases & local models
+*.db
+*.sqlite
+*.sqlite3
+roundtable.db
+whisper_models/
+backend/whisper_models/
+models--*
+
+# Testing & scratch scripts
+test_roundtable.py
+test_websocket.py
+scratch/
+*.log
+
+# OS & Editor
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
