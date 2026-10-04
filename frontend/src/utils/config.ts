@@ -3,7 +3,7 @@
  * Supports switching between Online Cloud Server, Localhost Server, and Custom LAN Server.
  */
 
-export const DEFAULT_PUBLIC_BACKEND_URL = 'https://systems-gap-der-seasons.trycloudflare.com';
+export const DEFAULT_PUBLIC_BACKEND_URL = 'https://dozen-cool-coming-spirits.trycloudflare.com';
 export const LOCALHOST_BACKEND_URL = 'http://localhost:8000';
 
 export type ServerTarget = 'online' | 'localhost' | 'custom';

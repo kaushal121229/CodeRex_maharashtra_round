@@ -25,28 +25,39 @@ export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({
 
   return (
     <div
-      className={`p-3 rounded-xl border transition-all ${
+      className={`p-3.5 rounded-2xl transition-all duration-300 ${
         isSpeaking
-          ? 'bg-indigo-950/40 border-indigo-500/50 shadow-lg shadow-indigo-500/10'
-          : 'bg-slate-900/60 border-white/5 hover:border-white/10'
+          ? 'glass-card-glow border-indigo-500/50 shadow-lg shadow-indigo-500/15'
+          : 'glass-card-interactive hover:border-white/20'
       }`}
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-3">
-          {/* Avatar with speaking ring */}
+          {/* Avatar with speaking ring and neon glow */}
           <div className="relative">
             <div
-              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md transition-transform ${
-                isSpeaking ? 'scale-105 ring-2 ring-indigo-400' : ''
+              className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md transition-all duration-300 ${
+                isSpeaking
+                  ? 'scale-110 ring-2 ring-indigo-400 ring-offset-2 ring-offset-slate-950 animate-speaking-ripple'
+                  : ''
               }`}
-              style={{ backgroundColor: participant.avatar_color || '#6366F1' }}
+              style={{
+                backgroundColor: participant.avatar_color || '#6366F1',
+                boxShadow: isSpeaking
+                  ? `0 0 16px ${participant.avatar_color || '#6366F1'}80`
+                  : 'none',
+              }}
             >
               {participant.display_name.charAt(0).toUpperCase()}
             </div>
             {/* Status indicator dot */}
             <span
-              className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-slate-950 ${
-                isConnected ? 'bg-emerald-400' : isReconnecting ? 'bg-amber-400 animate-pulse' : 'bg-red-400'
+              className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 shadow-sm ${
+                isConnected
+                  ? 'bg-emerald-400 shadow-emerald-400/50'
+                  : isReconnecting
+                  ? 'bg-amber-400 animate-pulse shadow-amber-400/50'
+                  : 'bg-red-400 shadow-red-400/50'
               }`}
             />
           </div>
@@ -91,25 +102,25 @@ export const DeviceNodeBadge: React.FC<DeviceNodeBadgeProps> = ({
           ) : isConnected ? (
             <div className="flex items-center space-x-1.5">
               {participant.mic_active ? (
-                <div className="flex items-center space-x-1">
-                  <Mic className={`w-3.5 h-3.5 ${isSpeaking ? 'text-indigo-400' : 'text-slate-400'}`} />
+                <div className="flex items-center space-x-1.5 px-2 py-1 rounded-lg bg-slate-950/40 border border-white/5">
+                  <Mic className={`w-3.5 h-3.5 transition-colors ${isSpeaking ? 'text-indigo-400 animate-pulse' : 'text-slate-400'}`} />
                   {/* Mini audio activity meter bar */}
-                  <div className="w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div className="w-12 h-1.5 bg-slate-800/80 rounded-full overflow-hidden shadow-inner">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 transition-all duration-75"
+                      className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 transition-all duration-75 shadow-sm shadow-cyan-400/50"
                       style={{ width: `${activityLevel}%` }}
                     />
                   </div>
                 </div>
               ) : (
-                <span className="flex items-center space-x-1 text-[11px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded">
+                <span className="flex items-center space-x-1 text-[11px] text-slate-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-lg">
                   <MicOff className="w-3 h-3 text-red-400" />
                   <span>Muted</span>
                 </span>
               )}
             </div>
           ) : (
-            <span className="text-[11px] text-slate-400">Offline</span>
+            <span className="text-[11px] text-slate-500 bg-slate-900/60 px-2 py-0.5 rounded-lg border border-white/5">Offline</span>
           )}
 
           {/* Host remove participant button */}

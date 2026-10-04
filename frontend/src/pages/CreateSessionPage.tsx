@@ -94,13 +94,16 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-lg p-8 rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl shadow-2xl">
+      <div className="w-full max-w-lg p-6 sm:p-10 rounded-3xl glass-card-glow shadow-2xl animate-fade-in relative overflow-hidden">
+        {/* Ambient Top Rim Glow */}
+        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/80 to-transparent" />
+
         {/* Back Link */}
         <button
           onClick={onBack}
-          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors cursor-pointer"
+          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors cursor-pointer group"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Home</span>
         </button>
 
@@ -108,17 +111,17 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
           /* Session Creation Form */
           <div>
             <div className="text-center mb-8">
-              <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20">
-                <Radio className="w-6 h-6" />
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20 shadow-lg shadow-indigo-500/10">
+                <Radio className="w-7 h-7 text-indigo-400 animate-pulse" />
               </div>
-              <h2 className="text-2xl font-bold text-white">Create Cloud Meeting</h2>
-              <p className="text-sm text-slate-400 mt-1">
-                Start a shared internet meeting room. Nearby and remote devices can join with Room ID or QR.
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Create Cloud Meeting</h2>
+              <p className="text-sm text-slate-400 mt-1.5 max-w-sm mx-auto">
+                Host a real-time collaborative audio mesh. Nearby & remote devices synchronize speech instantly.
               </p>
             </div>
 
             {error && (
-              <div className="mb-6 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs leading-relaxed">
+              <div className="mb-6 p-4 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed glass-card">
                 {error}
               </div>
             )}
@@ -134,7 +137,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="e.g., Engineering Architecture Sync"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 rounded-xl glass-input text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
@@ -148,16 +151,18 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
                   value={hostName}
                   onChange={(e) => setHostName(e.target.value)}
                   placeholder="e.g., Saish (Host)"
-                  className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 rounded-xl glass-input text-sm placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
               </div>
 
-              <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/5 flex items-center space-x-3">
-                <Smartphone className="w-5 h-5 text-indigo-400 shrink-0" />
+              <div className="p-4 rounded-2xl glass-card border border-white/5 flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center shrink-0 border border-indigo-500/20">
+                  <Smartphone className="w-5 h-5 text-indigo-400" />
+                </div>
                 <div className="text-xs">
-                  <span className="text-slate-300 font-medium block">Host Microphone Node</span>
-                  <span className="text-slate-400 font-mono text-[11px] truncate block">
-                    Device ID: {deviceId}
+                  <span className="text-slate-200 font-semibold block">Host Microphone Node</span>
+                  <span className="text-slate-400 font-mono text-[11px] truncate block mt-0.5">
+                    ID: {deviceId}
                   </span>
                 </div>
               </div>
@@ -165,7 +170,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer disabled:opacity-60"
+                className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl glass-btn-primary text-white font-semibold text-sm shadow-xl shadow-indigo-500/25 cursor-pointer disabled:opacity-60"
               >
                 {isLoading ? (
                   <span>Creating Cloud Room...</span>
@@ -181,35 +186,35 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
         ) : (
           /* Room Created - Controls: Copy Room ID, Copy Join Link, QR Code */
           <div className="text-center animate-fade-in space-y-5">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-1 border border-emerald-500/20">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-400 mb-1 border border-emerald-500/30 shadow-lg shadow-emerald-500/10">
+              <ShieldCheck className="w-7 h-7" />
             </div>
             <div>
-              <h2 className="text-2xl font-bold text-white">Meeting Room Created!</h2>
-              <p className="text-xs text-slate-400 mt-1">
-                Share this Room ID or QR code with participants on any phone, Wi-Fi, or mobile network.
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Meeting Room Created!</h2>
+              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+                Share this Room ID or QR code with participants on any phone, Wi-Fi, or cellular network.
               </p>
             </div>
 
             {/* Room ID Badge */}
-            <div className="p-3 rounded-2xl bg-slate-950/80 border border-indigo-500/30">
+            <div className="p-4 rounded-2xl glass-card-glow border border-indigo-500/40">
               <span className="text-[10px] uppercase font-mono text-slate-400 tracking-wider font-semibold block">
                 Room ID
               </span>
-              <span className="text-2xl font-mono font-extrabold text-indigo-300 tracking-wider">
+              <span className="text-3xl font-mono font-extrabold text-white tracking-widest mt-1 block">
                 {roomId}
               </span>
             </div>
 
             {/* QR Code Container */}
-            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-2xl shadow-inner mx-auto max-w-[240px]">
+            <div className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-2xl mx-auto max-w-[240px] border-4 border-indigo-500/30">
               <QRCodeSVG
                 value={joinUrl}
                 size={180}
                 level="H"
                 includeMargin={true}
               />
-              <span className="text-[11px] font-mono text-slate-600 mt-2 font-semibold">
+              <span className="text-[11px] font-mono text-slate-700 mt-2 font-bold tracking-tight">
                 Scan with phone camera
               </span>
             </div>
@@ -219,7 +224,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
               <button
                 type="button"
                 onClick={handleCopyId}
-                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-white/10 transition-colors"
+                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl glass-btn-secondary text-white text-xs font-semibold cursor-pointer"
               >
                 {copiedId ? (
                   <>
@@ -237,7 +242,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-md shadow-indigo-600/20 transition-colors"
+                className="flex items-center justify-center space-x-1.5 py-3 px-3 rounded-xl glass-btn-primary text-white text-xs font-semibold shadow-md shadow-indigo-600/30 cursor-pointer"
               >
                 {copiedLink ? (
                   <>
@@ -253,7 +258,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
               </button>
             </div>
 
-            <div className="p-2 rounded-xl bg-slate-950/60 border border-white/5">
+            <div className="p-2.5 rounded-xl glass-card border border-white/5">
               <span className="text-[11px] text-slate-400 font-mono break-all block truncate">
                 {joinUrl}
               </span>
@@ -262,7 +267,7 @@ export const CreateSessionPage: React.FC<CreateSessionPageProps> = ({
             {/* Enter Live Roundtable */}
             <button
               onClick={handleEnterDashboard}
-              className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-xl shadow-emerald-500/25 transition-all cursor-pointer"
+              className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-sm shadow-xl shadow-emerald-500/25 transition-all hover:scale-105 cursor-pointer"
             >
               <span>Enter Meeting as Host</span>
               <ArrowRight className="w-4 h-4 ml-1" />

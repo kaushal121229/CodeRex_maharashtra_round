@@ -168,28 +168,31 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-md p-8 rounded-3xl bg-slate-900/80 border border-white/10 backdrop-blur-xl shadow-2xl">
+      <div className="w-full max-w-md p-6 sm:p-9 rounded-3xl glass-card-glow shadow-2xl animate-fade-in relative overflow-hidden">
+        {/* Ambient Top Rim Glow */}
+        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent" />
+
         {/* Back Link */}
         <button
           onClick={onBack}
-          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors cursor-pointer"
+          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors cursor-pointer group"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Home</span>
         </button>
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20">
-            <Smartphone className="w-6 h-6" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 mb-3 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
+            <Smartphone className="w-7 h-7 text-cyan-400 animate-pulse" />
           </div>
-          <h2 className="text-2xl font-bold text-white">Join Cloud Meeting</h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Connect from any phone, mobile data, or Wi-Fi network.
+          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Join Cloud Meeting</h2>
+          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+            Connect your device as an active microphone node on any mobile network or Wi-Fi.
           </p>
         </div>
 
         {error && (
-          <div className="p-3 mb-5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
+          <div className="p-4 mb-5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed glass-card">
             {error}
           </div>
         )}
@@ -217,7 +220,7 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
               value={sessionCode}
               onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
               placeholder="e.g. RT-48291"
-              className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white font-mono tracking-wider placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors uppercase"
+              className="w-full px-4 py-3 rounded-xl glass-input font-mono tracking-wider text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors uppercase"
             />
           </div>
 
@@ -231,7 +234,7 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Rahul, Saish, or Aman"
-              className="w-full px-4 py-3 rounded-xl bg-slate-950/60 border border-white/10 text-white placeholder-slate-500 text-sm focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full px-4 py-3 rounded-xl glass-input text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
             />
           </div>
 
@@ -240,46 +243,53 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
               Avatar Color Tag
             </label>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center justify-between px-1">
               {AVATAR_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setSelectedColor(c)}
-                  className={`w-7 h-7 rounded-full transition-transform cursor-pointer ${
-                    selectedColor === c ? 'scale-125 ring-2 ring-white' : 'opacity-80 hover:opacity-100'
+                  className={`w-7 h-7 rounded-full transition-all duration-200 cursor-pointer ${
+                    selectedColor === c
+                      ? 'scale-125 ring-2 ring-white shadow-lg ring-offset-2 ring-offset-slate-950'
+                      : 'opacity-70 hover:opacity-100 hover:scale-110'
                   }`}
-                  style={{ backgroundColor: c }}
+                  style={{
+                    backgroundColor: c,
+                    boxShadow: selectedColor === c ? `0 0 12px ${c}80` : 'none',
+                  }}
                 />
               ))}
             </div>
           </div>
 
           {/* Microphone Pre-Check */}
-          <div className="p-3.5 rounded-xl bg-slate-950/40 border border-white/5 space-y-2">
+          <div className="p-4 rounded-2xl glass-card border border-white/5 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-300 font-medium flex items-center space-x-1.5">
-                <Mic className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Microphone Check</span>
+              <span className="text-xs text-slate-200 font-semibold flex items-center space-x-2">
+                <Mic className="w-4 h-4 text-cyan-400" />
+                <span>Microphone Pre-Check</span>
               </span>
               <button
                 type="button"
                 onClick={toggleMicTest}
-                className="text-[11px] font-medium text-indigo-400 hover:text-indigo-300 underline cursor-pointer"
+                className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                {isTestingMic ? 'Stop Test' : 'Test Mic Level'}
+                {isTestingMic ? 'Stop Test' : 'Test Mic Input'}
               </button>
             </div>
 
             {isTestingMic && (
-              <div className="space-y-1">
-                <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div className="space-y-1.5 animate-fade-in">
+                <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-indigo-500 transition-all duration-75"
+                    className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 rounded-full transition-all duration-75 shadow-sm shadow-cyan-400/50"
                     style={{ width: `${testMicLevel}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-slate-400">Speak into your device to test audio input level</span>
+                <span className="text-[10px] text-slate-400 block font-mono">
+                  Speak into your device — input level is live
+                </span>
               </div>
             )}
           </div>
@@ -287,13 +297,13 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-semibold text-sm shadow-lg shadow-indigo-500/25 transition-all cursor-pointer disabled:opacity-60"
+            className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl glass-btn-primary text-white font-semibold text-sm shadow-xl shadow-cyan-500/20 transition-all hover:scale-105 cursor-pointer disabled:opacity-60"
           >
             {isLoading ? (
               <span>Connecting to Room...</span>
             ) : (
               <>
-                <span>Join Meeting</span>
+                <span>Join Meeting Mesh</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
               </>
             )}
