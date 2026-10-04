@@ -192,26 +192,26 @@ export function App() {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#060813] text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-white overflow-hidden">
+    <div className="relative min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans selection:bg-indigo-500/20 selection:text-indigo-900 overflow-hidden">
       {/* Dynamic Animated Ambient Glass Glow Mesh Background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {/* Floating Orb 1: Violet/Indigo */}
-        <div className="absolute top-[-10%] left-[-5%] w-[550px] h-[550px] rounded-full bg-indigo-600/15 blur-[120px] animate-float-slow" />
-        {/* Floating Orb 2: Cyan/Teal */}
-        <div className="absolute top-[25%] right-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-500/12 blur-[130px] animate-float-reverse" />
-        {/* Floating Orb 3: Pink/Purple */}
-        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-purple-600/12 blur-[140px] animate-pulse-glow" />
+        <div className="absolute top-[-10%] left-[-5%] w-[550px] h-[550px] rounded-full bg-indigo-300/35 blur-[120px] animate-float-slow" />
+        {/* Floating Orb 2: Cyan/Sky */}
+        <div className="absolute top-[25%] right-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-300/30 blur-[130px] animate-float-reverse" />
+        {/* Floating Orb 3: Pink/Rose */}
+        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-pink-300/25 blur-[140px] animate-pulse-glow" />
         {/* Subtle grid pattern overlay for glassmorphic depth */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff05_1px,transparent_1px),linear-gradient(to_bottom,#ffffff05_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-40" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#6366f10d_1px,transparent_1px),linear-gradient(to_bottom,#6366f10d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-70" />
       </div>
 
       {/* Toast Notification Container */}
       {toast && (
         <div className="fixed top-20 right-5 z-50 animate-in fade-in slide-in-from-top-3 duration-300">
-          <div className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl glass-card border-indigo-500/40 shadow-xl shadow-black/50 text-xs text-white">
-            {toast.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-400" />}
-            {toast.type === 'info' && <Info className="w-4 h-4 text-indigo-400" />}
-            {toast.type === 'warn' && <AlertCircle className="w-4 h-4 text-amber-400" />}
+          <div className="flex items-center space-x-2 px-4 py-2.5 rounded-2xl glass-card border-indigo-400/40 shadow-xl shadow-slate-300/40 text-xs text-slate-800 font-medium">
+            {toast.type === 'success' && <CheckCircle className="w-4 h-4 text-emerald-600" />}
+            {toast.type === 'info' && <Info className="w-4 h-4 text-indigo-600" />}
+            {toast.type === 'warn' && <AlertCircle className="w-4 h-4 text-amber-600" />}
             <span>{toast.text}</span>
           </div>
         </div>
@@ -219,13 +219,13 @@ export function App() {
 
       {/* Meeting Ended Modal */}
       {meetingEndedMessage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="w-full max-w-sm p-6 rounded-3xl glass-card border border-white/10 text-center space-y-4 shadow-2xl">
-            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-400 flex items-center justify-center mx-auto border border-amber-500/20">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-sm p-6 rounded-3xl glass-card-glow border border-slate-200 text-center space-y-4 shadow-2xl">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/15 text-amber-600 flex items-center justify-center mx-auto border border-amber-500/30">
               <AlertCircle className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-white">Meeting Disconnected</h3>
-            <p className="text-xs text-slate-300">{meetingEndedMessage}</p>
+            <h3 className="text-lg font-bold text-slate-900">Meeting Disconnected</h3>
+            <p className="text-xs text-slate-600">{meetingEndedMessage}</p>
             <button
               onClick={() => {
                 setMeetingEndedMessage(null);

@@ -170,29 +170,29 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-md p-6 sm:p-9 rounded-3xl glass-card-glow shadow-2xl animate-fade-in relative overflow-hidden">
         {/* Ambient Top Rim Glow */}
-        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/80 to-transparent" />
+        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent" />
 
         {/* Back Link */}
         <button
           onClick={onBack}
-          className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white mb-6 transition-colors cursor-pointer group"
+          className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-900 mb-6 transition-colors cursor-pointer group font-medium"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           <span>Back to Home</span>
         </button>
 
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-500/10 text-cyan-400 mb-3 border border-cyan-500/20 shadow-lg shadow-cyan-500/10">
-            <Smartphone className="w-7 h-7 text-cyan-400 animate-pulse" />
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-cyan-50 text-cyan-600 mb-3 border border-cyan-200/80 shadow-md shadow-cyan-500/10">
+            <Smartphone className="w-7 h-7 text-cyan-600 animate-pulse" />
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">Join Cloud Meeting</h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Join Cloud Meeting</h2>
+          <p className="text-xs text-slate-600 mt-1 max-w-xs mx-auto leading-relaxed">
             Connect your device as an active microphone node on any mobile network or Wi-Fi.
           </p>
         </div>
 
         {error && (
-          <div className="p-4 mb-5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs leading-relaxed glass-card">
+          <div className="p-4 mb-5 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs leading-relaxed font-medium">
             {error}
           </div>
         )}
@@ -200,16 +200,16 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
         <form onSubmit={handleJoin} className="space-y-4">
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300">
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
                 Room ID
               </label>
               {sessionCode && (
                 <button
                   type="button"
                   onClick={handleCopyLink}
-                  className="flex items-center space-x-1 text-[11px] text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  className="flex items-center space-x-1 text-[11px] text-indigo-600 hover:text-indigo-800 font-semibold cursor-pointer"
                 >
-                  {copiedLink ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  {copiedLink ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                   <span>{copiedLink ? 'Copied' : 'Copy Join Link'}</span>
                 </button>
               )}
@@ -220,12 +220,12 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
               value={sessionCode}
               onChange={(e) => setSessionCode(e.target.value.toUpperCase())}
               placeholder="e.g. RT-48291"
-              className="w-full px-4 py-3 rounded-xl glass-input font-mono tracking-wider text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors uppercase"
+              className="w-full px-4 py-3 rounded-xl glass-input font-mono tracking-wider text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors uppercase"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
               Your Name
             </label>
             <input
@@ -234,13 +234,13 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g., Rahul, Saish, or Aman"
-              className="w-full px-4 py-3 rounded-xl glass-input text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-400 transition-colors"
+              className="w-full px-4 py-3 rounded-xl glass-input text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-cyan-500 transition-colors"
             />
           </div>
 
           {/* Color Selector */}
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
               Avatar Color Tag
             </label>
             <div className="flex items-center justify-between px-1">
@@ -251,12 +251,12 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
                   onClick={() => setSelectedColor(c)}
                   className={`w-7 h-7 rounded-full transition-all duration-200 cursor-pointer ${
                     selectedColor === c
-                      ? 'scale-125 ring-2 ring-white shadow-lg ring-offset-2 ring-offset-slate-950'
+                      ? 'scale-125 ring-2 ring-indigo-500 shadow-md ring-offset-2 ring-offset-white'
                       : 'opacity-70 hover:opacity-100 hover:scale-110'
                   }`}
                   style={{
                     backgroundColor: c,
-                    boxShadow: selectedColor === c ? `0 0 12px ${c}80` : 'none',
+                    boxShadow: selectedColor === c ? `0 0 10px ${c}80` : 'none',
                   }}
                 />
               ))}
@@ -264,16 +264,16 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
           </div>
 
           {/* Microphone Pre-Check */}
-          <div className="p-4 rounded-2xl glass-card border border-white/5 space-y-2.5">
+          <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-200 font-semibold flex items-center space-x-2">
-                <Mic className="w-4 h-4 text-cyan-400" />
+              <span className="text-xs text-slate-800 font-semibold flex items-center space-x-2">
+                <Mic className="w-4 h-4 text-cyan-600" />
                 <span>Microphone Pre-Check</span>
               </span>
               <button
                 type="button"
                 onClick={toggleMicTest}
-                className="text-[11px] font-semibold text-cyan-400 hover:text-cyan-300 transition-colors cursor-pointer"
+                className="text-[11px] font-bold text-cyan-600 hover:text-cyan-800 transition-colors cursor-pointer"
               >
                 {isTestingMic ? 'Stop Test' : 'Test Mic Input'}
               </button>
@@ -281,13 +281,13 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
 
             {isTestingMic && (
               <div className="space-y-1.5 animate-fade-in">
-                <div className="w-full h-2.5 bg-slate-950/80 rounded-full overflow-hidden p-0.5 border border-white/10 shadow-inner">
+                <div className="w-full h-2.5 bg-slate-200 rounded-full overflow-hidden p-0.5 border border-slate-300 shadow-inner">
                   <div
-                    className="h-full bg-gradient-to-r from-emerald-400 via-cyan-400 to-indigo-500 rounded-full transition-all duration-75 shadow-sm shadow-cyan-400/50"
+                    className="h-full bg-gradient-to-r from-emerald-500 via-cyan-500 to-indigo-600 rounded-full transition-all duration-75 shadow-sm shadow-cyan-500/40"
                     style={{ width: `${testMicLevel}%` }}
                   />
                 </div>
-                <span className="text-[10px] text-slate-400 block font-mono">
+                <span className="text-[10px] text-slate-500 block font-mono">
                   Speak into your device — input level is live
                 </span>
               </div>
@@ -297,7 +297,7 @@ export const JoinSessionPage: React.FC<JoinSessionPageProps> = ({
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl glass-btn-primary text-white font-semibold text-sm shadow-xl shadow-cyan-500/20 transition-all hover:scale-105 cursor-pointer disabled:opacity-60"
+            className="w-full flex items-center justify-center space-x-2 py-3.5 rounded-xl glass-btn-primary text-white font-semibold text-sm shadow-xl shadow-cyan-600/20 transition-all hover:scale-[1.02] cursor-pointer disabled:opacity-60"
           >
             {isLoading ? (
               <span>Connecting to Room...</span>

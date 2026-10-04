@@ -38,32 +38,32 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-3xl glass-card-glow shadow-2xl border border-indigo-500/30">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-fade-in">
+      <div className="relative w-full max-w-md p-6 sm:p-8 rounded-3xl bg-white/95 backdrop-blur-2xl shadow-2xl border border-slate-200/90 text-slate-900">
         {/* Ambient Top Rim Glow */}
-        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/80 to-transparent" />
+        <div className="absolute top-0 left-1/4 right-1/4 h-[2px] bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
         {/* Close Button */}
         <button
           onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="absolute top-5 right-5 p-2 rounded-xl text-slate-400 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
         <div className="text-center mb-6">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-400 mb-3 border border-indigo-500/20 shadow-md shadow-indigo-500/10">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 mb-3 border border-indigo-200/80 shadow-md shadow-indigo-500/10">
             <Smartphone className="w-6 h-6 animate-pulse" />
           </div>
-          <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">Join Cloud Meeting Room</h3>
-          <p className="text-xs text-slate-400 mt-1">
+          <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">Join Cloud Meeting Room</h3>
+          <p className="text-xs text-slate-600 mt-1">
             Any phone, tablet, or laptop can join via mobile data or Wi-Fi.
           </p>
         </div>
 
         {/* QR Code Container */}
-        <div className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-2xl mx-auto max-w-[240px] mb-6 border-4 border-indigo-500/20">
+        <div className="flex flex-col items-center justify-center p-6 bg-white rounded-3xl shadow-xl mx-auto max-w-[240px] mb-6 border-4 border-indigo-100">
           <QRCodeSVG
             value={joinUrl}
             size={190}
@@ -71,7 +71,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             includeMargin={true}
           />
           <div className="mt-3 text-center">
-            <span className="text-[10px] uppercase font-mono text-slate-500 tracking-wider font-semibold block">
+            <span className="text-[10px] uppercase font-mono text-slate-500 tracking-wider font-bold block">
               Room ID
             </span>
             <span className="text-2xl font-mono font-extrabold text-slate-900 tracking-wider">
@@ -85,16 +85,16 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               onClick={handleCopyId}
-              className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl glass-btn-secondary text-slate-200 text-xs font-semibold cursor-pointer"
+              className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl glass-btn-secondary text-slate-700 text-xs font-semibold cursor-pointer border border-slate-200/90 hover:bg-slate-100"
             >
               {copiedId ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Room ID Copied</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                  <span className="text-emerald-700">Room ID Copied</span>
                 </>
               ) : (
                 <>
-                  <Hash className="w-3.5 h-3.5 text-indigo-400" />
+                  <Hash className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Copy Room ID</span>
                 </>
               )}
@@ -102,7 +102,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
 
             <button
               onClick={handleCopyLink}
-              className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl glass-btn-primary text-white text-xs font-semibold shadow-md shadow-indigo-600/30 cursor-pointer"
+              className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl glass-btn-primary text-white text-xs font-semibold shadow-md shadow-indigo-600/25 cursor-pointer"
             >
               {copiedLink ? (
                 <>
@@ -118,16 +118,16 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({
             </button>
           </div>
 
-          <div className="flex items-center space-x-2 p-2.5 rounded-xl glass-card border border-white/5">
+          <div className="flex items-center space-x-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200">
             <input
               type="text"
               readOnly
               value={joinUrl}
-              className="bg-transparent text-xs text-slate-300 w-full focus:outline-none font-mono truncate px-1"
+              className="bg-transparent text-xs text-slate-600 w-full focus:outline-none font-mono truncate px-1"
             />
           </div>
 
-          <p className="text-[11px] text-center text-slate-400">
+          <p className="text-[11px] text-center text-slate-500">
             Works over cellular data, mobile hotspots, or any network. No shared Wi-Fi needed!
           </p>
         </div>
