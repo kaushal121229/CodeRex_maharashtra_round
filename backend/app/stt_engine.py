@@ -55,6 +55,11 @@ class STTEngine:
         if len(samples) < int(sample_rate * 0.4):
             return "", 0.0, 0.0
 
+        # Peak normalization: boost phone speech to clear, consistent volume
+        peak = float(np.max(np.abs(samples)))
+        if peak > 0.005:
+            samples = (samples / peak) * 0.95
+
         # Optional cloud Groq Whisper if API key is provided
         if settings.GROQ_API_KEY:
             try:
@@ -98,8 +103,7 @@ class STTEngine:
                 beam_size=1,  # Greedy for minimal latency in live streaming
                 language="en",
                 condition_on_previous_text=False,
-                vad_filter=True,  # Built-in Silero VAD strips out pure silence/noise to prevent hallucinations
-                vad_parameters=dict(min_silence_duration_ms=400),
+                vad_filter=False,  # Audio is already segmented by multi-device coordinator; don't discard speech!
                 no_speech_threshold=0.6,
             )
             

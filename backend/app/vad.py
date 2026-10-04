@@ -7,7 +7,7 @@ class AdaptiveVAD:
     """
     def __init__(
         self,
-        base_threshold: float = 0.008,
+        base_threshold: float = 0.006,
         hangover_frames: int = 4,
         noise_adapt_rate: float = 0.05
     ):

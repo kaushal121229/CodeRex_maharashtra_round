@@ -1,10 +1,12 @@
 /**
  * Central environment configuration for Roundtable Cloud Meeting.
- * Supports local development and production cloud deployment URLs.
+ * Supports switching between Online Cloud Server, Localhost Server, and Custom LAN Server.
  */
 
 export const DEFAULT_PUBLIC_BACKEND_URL = 'https://systems-gap-der-seasons.trycloudflare.com';
+export const LOCALHOST_BACKEND_URL = 'http://localhost:8000';
 
+export type ServerTarget = 'online' | 'localhost' | 'custom';
 
 export function getApiBaseUrl(): string {
   let envApi = import.meta.env.VITE_API_URL;
@@ -37,6 +39,47 @@ export function getApiBaseUrl(): string {
   return DEFAULT_PUBLIC_BACKEND_URL;
 }
 
+export function getCurrentServerTarget(): ServerTarget {
+  if (typeof window === 'undefined') return 'online';
+  const stored = localStorage.getItem('roundtable_api_url');
+  if (!stored) {
+    const host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+      return 'localhost';
+    }
+    return 'online';
+  }
+  if (stored.includes('localhost') || stored.includes('127.0.0.1')) {
+    return 'localhost';
+  }
+  if (stored === DEFAULT_PUBLIC_BACKEND_URL) {
+    return 'online';
+  }
+  return 'custom';
+}
+
+export function setServerTarget(target: ServerTarget, customUrl?: string): string {
+  if (typeof window === 'undefined') return DEFAULT_PUBLIC_BACKEND_URL;
+  let targetUrl = DEFAULT_PUBLIC_BACKEND_URL;
+
+  if (target === 'online') {
+    localStorage.removeItem('roundtable_api_url');
+    targetUrl = DEFAULT_PUBLIC_BACKEND_URL;
+  } else if (target === 'localhost') {
+    localStorage.setItem('roundtable_api_url', LOCALHOST_BACKEND_URL);
+    targetUrl = LOCALHOST_BACKEND_URL;
+  } else if (target === 'custom' && customUrl) {
+    let clean = customUrl.trim().replace(/\/+$/, '');
+    if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+      clean = `http://${clean}`;
+    }
+    localStorage.setItem('roundtable_api_url', clean);
+    targetUrl = clean;
+  }
+
+  return targetUrl;
+}
+
 export function setCustomApiUrl(url: string): void {
   if (typeof window !== 'undefined') {
     if (url.trim()) {
@@ -64,22 +107,13 @@ export function getWsBaseUrl(roomId: string, _participantId?: string): string {
     return `${envWs}/ws/${cleanRoom}`;
   }
 
-  // 2. Automatically derive WebSocket URL from VITE_API_URL
+  // 2. Automatically derive WebSocket URL from getApiBaseUrl()
   const apiBase = getApiBaseUrl();
-  if (apiBase && !apiBase.includes('localhost') && !apiBase.includes('127.0.0.1')) {
-    const derivedWs = apiBase.replace(/^https:\/\//, 'wss://').replace(/^http:\/\//, 'ws://');
-    return `${derivedWs}/ws/${cleanRoom}`;
-  }
-
-  // 3. Localhost development fallback
-  if (typeof window !== 'undefined') {
-    const host = window.location.hostname;
-    if (host === 'localhost' || host === '127.0.0.1') {
-      return `ws://${host}:8000/ws/${cleanRoom}`;
-    }
-
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    return `${protocol}//${window.location.host}/ws/${cleanRoom}`;
+  if (apiBase) {
+    const wsBase = apiBase
+      .replace(/^https:\/\//i, 'wss://')
+      .replace(/^http:\/\//i, 'ws://');
+    return `${wsBase}/ws/${cleanRoom}`;
   }
 
   return `ws://localhost:8000/ws/${cleanRoom}`;

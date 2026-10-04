@@ -147,8 +147,8 @@ class SessionAudioCoordinator:
             # Case A: Long continuous speech reached 2.5s (stream partial turn)
             if buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 2.5):
                 should_process = True
-            # Case B: Natural pause after speech (at least 2 silent chunks = ~1.0s pause, total audio >= 1.0s)
-            elif not buf.is_speaking and buf.silent_chunks_count >= 2 and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 1.0):
+            # Case B: Natural pause after speech (at least 1 silent chunk = ~500ms pause, total audio >= 1.0s)
+            elif not buf.is_speaking and buf.silent_chunks_count >= 1 and buf.accumulated_samples_count >= int(settings.SAMPLE_RATE * 1.0):
                 should_process = True
 
             if not should_process:
