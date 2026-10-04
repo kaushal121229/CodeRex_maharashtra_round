@@ -3,7 +3,7 @@
  * Supports local development and production cloud deployment URLs.
  */
 
-export const DEFAULT_PUBLIC_BACKEND_URL = 'https://roads-distribute-rely-laughing.trycloudflare.com';
+export const DEFAULT_PUBLIC_BACKEND_URL = 'https://systems-gap-der-seasons.trycloudflare.com';
 
 
 export function getApiBaseUrl(): string {
