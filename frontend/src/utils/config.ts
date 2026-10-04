@@ -3,7 +3,7 @@
  * Supports switching between Online Cloud Server, Localhost Server, and Custom LAN Server.
  */
 
-export const DEFAULT_PUBLIC_BACKEND_URL = 'https://dozen-cool-coming-spirits.trycloudflare.com';
+export const DEFAULT_PUBLIC_BACKEND_URL = 'https://prep-top-privilege-butter.trycloudflare.com';
 export const LOCALHOST_BACKEND_URL = 'http://localhost:8000';
 
 export type ServerTarget = 'online' | 'localhost' | 'custom';
@@ -25,6 +25,11 @@ export function getApiBaseUrl(): string {
       let url = stored.trim().replace(/\/+$/, '');
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         url = `https://${url}`;
+      }
+      // If stored points to a previous trycloudflare URL, automatically migrate to active tunnel
+      if (url.includes('.trycloudflare.com') && url !== DEFAULT_PUBLIC_BACKEND_URL) {
+        localStorage.setItem('roundtable_api_url', DEFAULT_PUBLIC_BACKEND_URL);
+        return DEFAULT_PUBLIC_BACKEND_URL;
       }
       return url;
     }
