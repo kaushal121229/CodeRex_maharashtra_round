@@ -7,6 +7,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { TranscriptPage } from './pages/TranscriptPage';
 import { EvaluationPage } from './pages/EvaluationPage';
 import { QRCodeModal } from './components/QRCodeModal';
+import { LiveConversationBackground } from './components/LiveConversationBackground';
 import { Participant } from './types';
 import { getApiBaseUrl } from './utils/config';
 import { AlertCircle, CheckCircle, Info } from 'lucide-react';
@@ -193,17 +194,8 @@ export function App() {
 
   return (
     <div className="relative min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans selection:bg-indigo-500/20 selection:text-indigo-900 overflow-hidden">
-      {/* Dynamic Animated Ambient Glass Glow Mesh Background */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {/* Floating Orb 1: Violet/Indigo */}
-        <div className="absolute top-[-10%] left-[-5%] w-[550px] h-[550px] rounded-full bg-indigo-300/35 blur-[120px] animate-float-slow" />
-        {/* Floating Orb 2: Cyan/Sky */}
-        <div className="absolute top-[25%] right-[-10%] w-[500px] h-[500px] rounded-full bg-cyan-300/30 blur-[130px] animate-float-reverse" />
-        {/* Floating Orb 3: Pink/Rose */}
-        <div className="absolute bottom-[-10%] left-[20%] w-[600px] h-[600px] rounded-full bg-pink-300/25 blur-[140px] animate-pulse-glow" />
-        {/* Subtle grid pattern overlay for glassmorphic depth */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#6366f10d_1px,transparent_1px),linear-gradient(to_bottom,#6366f10d_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] opacity-70" />
-      </div>
+      {/* Dynamic Live Conversation Background: Acoustic Waveforms, Microphone Mesh Nodes, & Conversation Chips */}
+      <LiveConversationBackground />
 
       {/* Toast Notification Container */}
       {toast && (
